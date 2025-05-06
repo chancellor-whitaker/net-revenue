@@ -30,8 +30,17 @@ import { promise } from "./utils/promise";
 - some column values are right-aligned vs left-aligned
 - filters for level, online, residency, & student type (filter on full date & year)
 - try to make your table look as much like hers as possible
-- showing definition/note on hovering name (column A) in table
+- showing definition/note on click popup icon by name (column A) in table
 */
+
+// empty row after tuition & fees
+// total external before federal grant/...
+// empty row before & after total external rev.
+// highlight total external rev. row
+// empty row under institutional aid less state...
+// net revenue & discount rate should be surrounded with empty rows
+// make table minimally scrollable (no y scroll)
+// surround with empty rows--net rev per fte through fte
 
 export default function App() {
   const data = usePromise(promise);
