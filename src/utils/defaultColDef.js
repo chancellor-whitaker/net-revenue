@@ -4,6 +4,7 @@ import { headerClass } from "./headerClass";
 export const defaultColDef = {
   valueFormatter: ({ value }) =>
     `${value}`.startsWith("$") ? `${value}`.substring(1) : value,
+  sortable: false,
   cellClassRules,
   headerClass,
 };
