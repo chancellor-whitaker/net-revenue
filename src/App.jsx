@@ -31,6 +31,9 @@ import { promise } from "./utils/promise";
 // ? showing definition/note on click popup icon by name (column A) in table
 // filters for level, online, residency, & student type (filter on full date & year)
 // change autosize behavior based on width of grid
+// math formatting in definitions?
+// highlight specific rows (special rows)
+// maybe change color of empty rows (could just be white)
 // * highlight total external rev. row
 // * no sorting values
 // * some column values are right-aligned vs left-aligned
@@ -139,7 +142,7 @@ export default function App() {
               onRowDataUpdated={({ api }) => api.sizeColumnsToFit()}
               defaultColDef={defaultColDef}
               columnDefs={bestColumnDefs}
-              tooltipHideDelay={2000}
+              // tooltipHideDelay={2000}
               domLayout="autoHeight"
               rowData={bestRowData}
               tooltipShowDelay={0}
