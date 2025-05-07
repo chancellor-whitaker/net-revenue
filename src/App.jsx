@@ -28,8 +28,9 @@ import { promise } from "./utils/promise";
 // };
 
 // ? try to make your table look as much like hers as possible
-// showing definition/note on click popup icon by name (column A) in table
+// ? showing definition/note on click popup icon by name (column A) in table
 // filters for level, online, residency, & student type (filter on full date & year)
+// change autosize behavior based on width of grid
 // * highlight total external rev. row
 // * no sorting values
 // * some column values are right-aligned vs left-aligned
@@ -41,10 +42,16 @@ import { promise } from "./utils/promise";
 // * make table minimally scrollable (no y scroll)
 // * surround with empty rows--net rev per fte through fte
 
+const fieldsToShow = new Set([
+  "2021-2022",
+  "2022-2023",
+  "2023-2024",
+  "name",
+  "%",
+]);
+
 export default function App() {
   const data = usePromise(promise);
-
-  console.log(data);
 
   const rowData = fixRowData(data);
 
@@ -117,11 +124,9 @@ export default function App() {
 
   const bestRowData = addProperBlanks();
 
-  console.log(bestRowData);
-
-  const autoSizeStrategy = { type: "fitCellContents" };
-
-  const domLayout = "autoHeight";
+  const bestColumnDefs = columnDefs.filter(({ field }) =>
+    fieldsToShow.has(field)
+  );
 
   // const chartData = createChartData({ rowData });
 
@@ -131,11 +136,13 @@ export default function App() {
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>
             <AgGridReact
-              autoSizeStrategy={autoSizeStrategy}
+              onRowDataUpdated={({ api }) => api.sizeColumnsToFit()}
               defaultColDef={defaultColDef}
-              columnDefs={columnDefs}
-              domLayout={domLayout}
+              columnDefs={bestColumnDefs}
+              tooltipHideDelay={2000}
+              domLayout="autoHeight"
               rowData={bestRowData}
+              tooltipShowDelay={0}
             />
           </div>
         </div>
