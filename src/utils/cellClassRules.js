@@ -1,3 +1,7 @@
+const years = ["2020-2021", "2021-2022", "2022-2023", "2023-2024"];
+
+const allButLastYear = years.slice(0, -1);
+
 export const cellClassRules = {
   "text-end": ({ colDef: { field }, value }) => {
     if (field === "name") {
@@ -9,7 +13,7 @@ export const cellClassRules = {
         "State Grant/Scholarship",
         "Foundation Scholarships",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Institutional Aid",
         "Housing Grants",
         "Scholarships",
@@ -18,19 +22,12 @@ export const cellClassRules = {
         "Student",
       ]).has(value);
     }
-    if (
-      new Set(["2021-2022", "2022-2023", "2023-2024", "__1", "__2", "%"]).has(
-        field
-      )
-    ) {
+    if (new Set(["__1", "__2", "%", ...years]).has(field)) {
       return true;
     }
   },
   "border-end-0": ({ colDef: { field }, data }) => {
-    if (field === "2023-2024") {
-      return new Set([]).has(data.name);
-    }
-    if (new Set(["2021-2022", "2022-2023"]).has(field)) {
+    if (new Set(allButLastYear).has(field)) {
       return new Set([
         "Employee/Dependent Tuition Waiver",
         "Other/External Grant/Scholarship",
@@ -38,7 +35,7 @@ export const cellClassRules = {
         "State Grant/Scholarship",
         "Foundation Scholarships",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
@@ -46,7 +43,7 @@ export const cellClassRules = {
     }
   },
   "bg-secondary-subtle": ({ colDef: { field }, data }) => {
-    if (new Set(["2021-2022", "2022-2023", "2023-2024"]).has(field)) {
+    if (new Set(years).has(field)) {
       return new Set([
         "Employee/Dependent Tuition Waiver",
         "Other/External Grant/Scholarship",
@@ -54,7 +51,7 @@ export const cellClassRules = {
         "State Grant/Scholarship",
         "Foundation Scholarships",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
@@ -62,7 +59,7 @@ export const cellClassRules = {
     }
   },
   "border-dark": ({ colDef: { field }, data }) => {
-    if (new Set(["2021-2022", "2022-2023", "2023-2024"]).has(field)) {
+    if (new Set(years).has(field)) {
       return new Set([
         "Employee/Dependent Tuition Waiver",
         "Other/External Grant/Scholarship",
@@ -70,7 +67,7 @@ export const cellClassRules = {
         "Foundation Scholarships",
         "State Grant/Scholarship",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
@@ -86,7 +83,7 @@ export const cellClassRules = {
         "State Grant/Scholarship",
         "Foundation Scholarships",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
@@ -94,48 +91,48 @@ export const cellClassRules = {
     }
   },
   "border-top-0": ({ colDef: { field }, data }) => {
-    if (new Set(["2021-2022", "2022-2023", "2023-2024"]).has(field)) {
+    if (new Set(years).has(field)) {
       return new Set([
         "Employee/Dependent Tuition Waiver",
         "Other/External Grant/Scholarship",
         "State Grant/Scholarship",
         "Foundation Scholarships",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Housing Grants",
         "SAFE Fund",
       ]).has(data.name);
     }
   },
   "border-bottom-0": ({ colDef: { field }, data }) => {
-    if (new Set(["2021-2022", "2022-2023", "2023-2024"]).has(field)) {
+    if (new Set(years).has(field)) {
       return new Set([
         "Employee/Dependent Tuition Waiver",
         "Federal Grant/Scholarship",
         "State Grant/Scholarship",
         "Foundation Scholarships",
         "State Mandated Waivers",
-        "Athletic Scholarhship",
+        "Athletic Scholarships",
         "Housing Grants",
         "Scholarships",
       ]).has(data.name);
     }
   },
-  //   "pe-4": ({ colDef: { field }, value }) => {
-  //     if (field === "name") {
-  //       return new Set([
-  //         "Employee/Dependent Tuition Waiver",
-  //         "Foundation Scholarships",
-  //         "State Mandated Waivers",
-  //         "Athletic Scholarhship",
-  //         "Housing Grants",
-  //         "Scholarships",
-  //         "SAFE Fund",
-  //       ]).has(value);
-  //     }
-  //   },
+  "bg-warning-subtle": ({ data }) => {
+    return new Set([
+      "Institutional Aid less State Waivers and Foundation",
+      "Institutional Grant/Scholarship Aid",
+      "Revenue after external aid",
+      "Total Student Credit Hours",
+      "Total External Aid",
+      "Tuition & Fees",
+      "Net Revenue",
+      "BookSmart",
+      "FTE",
+    ]).has(data.name);
+  },
   "border-dashed": ({ colDef: { field }, data }) => {
-    if (new Set(["2021-2022", "2022-2023", "2023-2024"]).has(field)) {
+    if (new Set(years).has(field)) {
       return new Set([
         "Other/External Grant/Scholarship",
         "Federal Grant/Scholarship",
@@ -143,27 +140,9 @@ export const cellClassRules = {
       ]).has(data.name);
     }
   },
-  "border-start-0": ({ colDef: { field }, data }) => {
-    if (new Set(["2021-2022", "2022-2023", "2023-2024"]).has(field)) {
-      return new Set([]).has(data.name);
-    }
-  },
-  "bg-warning-subtle": ({ data }) => {
-    return data.name === "Revenue after external aid";
-  },
-  //   "ps-4": ({ colDef: { field }, value }) => {
-  //     if (field === "name") {
-  //       return new Set([
-  //         "Other/External Grant/Scholarship",
-  //         "Federal Grant/Scholarship",
-  //         "State Grant/Scholarship",
-  //         "Total External Aid",
-  //       ]).has(value);
-  //     }
-  //   },
   "text-center": ({ colDef: { field } }) =>
     new Set(["Definition", "Notes"]).has(field),
-  "bg-secondary": ({ data }) => {
+  "bg-white": ({ data }) => {
     return data.name === "";
   },
   "fw-bold": ({ colDef: { field } }) => field === "name",
