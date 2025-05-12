@@ -1,19 +1,20 @@
+import { useDeferredValue, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { useState } from "react";
 import { csv } from "d3-fetch";
 
 import { buildNetRevenueData } from "./utils/buildNetRevenueData";
-import { findRowWithName } from "./utils/findRowWithName";
+import { addProperBlanks } from "./utils/addProperBlanks";
+import { parseDateString } from "./utils/parseDateString";
 import { getColumnDefs } from "./utils/getColumnDefs";
 import { defaultColDef } from "./utils/defaultColDef";
-import { shallowEqual } from "./utils/shallowEqual";
-import { insertBefore } from "./utils/insertBefore";
+import { getEveryValue } from "./utils/getEveryValue";
 import { fieldsToShow } from "./utils/fieldsToShow";
-import { insertAfter } from "./utils/insertAfter";
+import { usePrevious } from "./hooks/usePrevious";
 import { usePromise } from "./hooks/usePromise";
 import { fixRowData } from "./utils/fixRowData";
 import { NetRevenue } from "./utils/NetRevenue";
-import { promise } from "./utils/promise";
+import { makeArray } from "./utils/makeArray";
+// import { promise } from "./utils/promise";
 
 // ? try to make your table look as much like hers as possible
 // ? showing definition/note on click popup icon by name (column A) in table
@@ -34,115 +35,90 @@ import { promise } from "./utils/promise";
 // * make table minimally scrollable (no y scroll)
 // * surround with empty rows--net rev per fte through fte
 
-const netRevenueParamsPromise = Promise.all(
-  ["NET_REV_STU_ACCT", "NET_REV_FTE", "NET_REV_OFF_FTE"].map((fileName) =>
-    csv(`data/NET_REV/${fileName}.csv`)
-  )
+const datasetsOrder = ["NET_REV_STU_ACCT", "NET_REV_FTE", "NET_REV_OFF_FTE"];
+
+const datasetsPromise = Promise.all(
+  datasetsOrder.map((fileName) => csv(`data/NET_REV/${fileName}.csv`))
 );
 
-const filterDataPromise = Promise.all(
-  ["STVLEVL", "STVRESD", "STVSTYP"].map((fileName) =>
-    csv(`data/NET_REV/${fileName}.csv`)
-  )
-);
+// const filterDataPromise = Promise.all(
+//   ["STVLEVL", "STVRESD", "STVSTYP"].map((fileName) =>
+//     csv(`data/NET_REV/${fileName}.csv`)
+//   )
+// );
 
-// console.log(netRevenueParamsPromise);
+const dateKeys = { accounting: "TRANSACTION_DATE", fte: "EFFECTIVE_DATE" };
+
+const makeDate = (param) => new Date(param);
 
 export default function App() {
-  const netRevenueParams = usePromise(netRevenueParamsPromise);
+  const datasets = usePromise(datasetsPromise);
 
-  const filterData = usePromise(filterDataPromise);
+  const array = [datasets].filter((element) => element).flat();
+
+  const [accountingData, unofficialFte, officialFte] = array;
+
+  const everyValue = getEveryValue(accountingData);
+
+  const everyDate = everyValue[dateKeys.accounting]
+    ? everyValue[dateKeys.accounting].sort(
+        (a, b) => makeDate(parseDateString(b)) - makeDate(parseDateString(a))
+      )
+    : null;
+
+  const [selectedDate, setSelectedDate] = useState();
+
+  const deferredSelectedDate = useDeferredValue(selectedDate);
+
+  const selectedDateValue = makeDate(parseDateString(selectedDate));
+
+  const filterAccountingData = (data) =>
+    makeArray(data).filter(
+      ({ [dateKeys.accounting]: date }) =>
+        makeDate(parseDateString(date)) <= selectedDateValue
+    );
+
+  const filterFteData = (data) =>
+    makeArray(data).filter(
+      ({ [dateKeys.fte]: date }) =>
+        makeDate(parseDateString(date)) <= selectedDateValue
+    );
+
+  const filteredAccountingData = filterAccountingData(accountingData);
+
+  const filteredUnofficialFteData = filterFteData(unofficialFte);
+  // perform group by & having clauses
+
+  // pass these filtered datasets & official fte dataset to NetRevenue below
+
+  console.log("accounting", filteredAccountingData);
+
+  console.log("unofficial fte", filteredUnofficialFteData);
+
+  if (everyDate && !selectedDate) setSelectedDate(everyDate[0]);
+
+  // accoutingData - Should be filtered on SELECTED_DATE <= transaction_date
+
+  /*
+  unofficialFTE - Should be filtered like so....
+  where effective_date <= SELECTED_DATE
+  group by YEAR, LEVL, EKU_ONLINE, RESD, STYP
+  having max(effective_date) = effective_date.
+  */
 
   const [netRevenue, setNetRevenue] = useState();
 
-  if (netRevenueParams && !netRevenue) {
-    setNetRevenue(new NetRevenue(...netRevenueParams));
-  }
+  const rerunData = () => setNetRevenue(new NetRevenue(...datasets));
+
+  usePrevious(deferredSelectedDate, rerunData);
 
   const formattedData = buildNetRevenueData(netRevenue);
-
-  console.log("using class", formattedData);
-
-  const data = usePromise(promise);
-
-  console.log("original", data);
 
   const rowData = fixRowData(formattedData);
 
   const columnDefs = getColumnDefs(rowData);
 
-  const makeEmptyRow = () =>
-    Object.fromEntries(columnDefs.map(({ field }) => [field, ""]));
-
-  const emptyRow = Object.fromEntries(
-    columnDefs.map(({ field }) => [field, ""])
-  );
-
-  const filledRows = rowData.filter((row) => !shallowEqual(row, emptyRow));
-
-  const addProperBlanks = () => {
-    const array1 = filledRows;
-
-    const totalExternalAidRow = findRowWithName(array1, "Total External Aid");
-
-    const tuitionAndFeesRow = findRowWithName(array1, "Tuition & Fees");
-
-    const revenueAfterExternalAidRow = findRowWithName(
-      array1,
-      "Revenue after external aid"
-    );
-
-    const netRevenueRow = findRowWithName(array1, "Net Revenue");
-
-    const discountRateRow = findRowWithName(array1, "Discount Rate");
-
-    const fteRow = findRowWithName(array1, "FTE");
-
-    const booksmartRow = findRowWithName(array1, "BookSmart");
-
-    const studentRow = findRowWithName(array1, "Student");
-
-    const array2 = array1.filter((element) => element !== totalExternalAidRow);
-
-    // move total external aid to after tuition & fees
-    const array3 = insertAfter(array2, tuitionAndFeesRow, totalExternalAidRow);
-
-    // empty row after tuition & fees
-    const array4 = insertAfter(array3, tuitionAndFeesRow, makeEmptyRow());
-
-    // empty row before revenue after external aid
-    const array5 = insertBefore(
-      array4,
-      revenueAfterExternalAidRow,
-      makeEmptyRow()
-    );
-
-    // empty row after revenue after external aid
-    const array6 = insertAfter(
-      array5,
-      revenueAfterExternalAidRow,
-      makeEmptyRow()
-    );
-
-    // empty row before net revenue
-    const array7 = insertBefore(array6, netRevenueRow, makeEmptyRow());
-
-    // empty row after discount rate
-    const array8 = insertAfter(array7, discountRateRow, makeEmptyRow());
-
-    // empty row after fte
-    const array9 = insertAfter(array8, fteRow, makeEmptyRow());
-
-    // empty row after student
-    const array10 = insertAfter(array9, studentRow, makeEmptyRow());
-
-    // empty row before booksmart
-    const array11 = insertBefore(array10, booksmartRow, makeEmptyRow());
-
-    return array11;
-  };
-
-  const bestRowData = addProperBlanks();
+  const bestRowData = addProperBlanks(rowData, columnDefs);
 
   const bestColumnDefs = columnDefs.filter(({ field }) =>
     fieldsToShow.has(field)
@@ -151,6 +127,27 @@ export default function App() {
   return (
     <>
       <main className="container">
+        <div className="my-3 p-3 bg-body rounded shadow-sm">
+          {parseDateString(selectedDate)}
+        </div>
+        <div className="my-3 p-3 bg-body rounded shadow-sm">
+          <ul className="list-group overflow-y-scroll" style={{ height: 205 }}>
+            {makeArray(everyDate).map((date) => (
+              <li
+                className={[
+                  "list-group-item",
+                  date === selectedDate ? "active" : "",
+                ]
+                  .filter((element) => element)
+                  .join(" ")}
+                onClick={() => setSelectedDate(date)}
+                key={date}
+              >
+                {parseDateString(date)}
+              </li>
+            ))}
+          </ul>
+        </div>
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>
             <AgGridReact
