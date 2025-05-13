@@ -1,0 +1,8 @@
+STVLEVL_CODE,STVLEVL_DESC
+00,Undeclared
+NC,Non Credit
+UG,Undergraduate
+GR,Graduate
+CE,Continuing Education
+ZZ,Non-applicable (IPEDS)
+DR,Doctoral
