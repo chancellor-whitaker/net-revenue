@@ -1,10 +1,11 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, useMemo, memo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { csv } from "d3-fetch";
 
 import { buildNetRevenueData } from "./utils/buildNetRevenueData";
 import { addProperBlanks } from "./utils/addProperBlanks";
 import { parseDateString } from "./utils/parseDateString";
+import { splitIntoGroups } from "./utils/splitIntoGroups";
 import { getColumnDefs } from "./utils/getColumnDefs";
 import { defaultColDef } from "./utils/defaultColDef";
 import { getEveryValue } from "./utils/getEveryValue";
@@ -51,45 +52,96 @@ const dateKeys = { accounting: "TRANSACTION_DATE", fte: "EFFECTIVE_DATE" };
 
 const makeDate = (param) => new Date(param);
 
+const groupBy = ["YEAR", "LEVL", "EKU_ONLINE", "RESD", "STYP"];
+
+const sortFte = ({ [dateKeys.fte]: a }, { [dateKeys.fte]: b }) =>
+  makeDate(parseDateString(b)) - makeDate(parseDateString(a));
+
+const filterAccountingData = (data, dateValue) =>
+  makeArray(data).filter(
+    ({ [dateKeys.accounting]: date }) =>
+      makeDate(parseDateString(date)) <= dateValue
+  );
+
+const filterFteData = (data, dateValue) =>
+  makeArray(data).filter(
+    ({ [dateKeys.fte]: date }) => makeDate(parseDateString(date)) <= dateValue
+  );
+
+const autoSizeGrid = ({ api }) => api.sizeColumnsToFit();
+
+const ListGroupItem = memo(({ formatter, onClick, active, value }) => {
+  return (
+    <li
+      className={["list-group-item", active ? "active" : ""]
+        .filter((element) => element)
+        .join(" ")}
+      onClick={() => onClick(value)}
+    >
+      {formatter(value)}
+    </li>
+  );
+});
+
 export default function App() {
   const datasets = usePromise(datasetsPromise);
 
-  const array = [datasets].filter((element) => element).flat();
+  const array = useMemo(
+    () => [datasets].filter((element) => element).flat(),
+    [datasets]
+  );
 
   const [accountingData, unofficialFte, officialFte] = array;
 
-  const everyValue = getEveryValue(accountingData);
+  const everyValue = useMemo(
+    () => getEveryValue(accountingData),
+    [accountingData]
+  );
 
-  const everyDate = everyValue[dateKeys.accounting]
-    ? everyValue[dateKeys.accounting].sort(
-        (a, b) => makeDate(parseDateString(b)) - makeDate(parseDateString(a))
-      )
-    : null;
+  const everyDate = useMemo(
+    () =>
+      everyValue[dateKeys.accounting]
+        ? everyValue[dateKeys.accounting].sort(
+            (a, b) =>
+              makeDate(parseDateString(b)) - makeDate(parseDateString(a))
+          )
+        : null,
+    [everyValue]
+  );
 
   const [selectedDate, setSelectedDate] = useState();
 
   const deferredSelectedDate = useDeferredValue(selectedDate);
 
-  const selectedDateValue = makeDate(parseDateString(selectedDate));
+  const selectedDateValue = useMemo(
+    () => makeDate(parseDateString(selectedDate)),
+    [selectedDate]
+  );
 
-  const filterAccountingData = (data) =>
-    makeArray(data).filter(
-      ({ [dateKeys.accounting]: date }) =>
-        makeDate(parseDateString(date)) <= selectedDateValue
-    );
+  const filteredAccountingData = useMemo(
+    () => filterAccountingData(accountingData, selectedDateValue),
+    [accountingData, selectedDateValue]
+  );
 
-  const filterFteData = (data) =>
-    makeArray(data).filter(
-      ({ [dateKeys.fte]: date }) =>
-        makeDate(parseDateString(date)) <= selectedDateValue
-    );
+  const filteredUnofficialFteData = useMemo(
+    () =>
+      splitIntoGroups(
+        filterFteData(unofficialFte, selectedDateValue).sort(sortFte),
+        groupBy
+      ).map((group) => group[0]),
+    [unofficialFte, selectedDateValue]
+  );
 
-  const filteredAccountingData = filterAccountingData(accountingData);
-
-  const filteredUnofficialFteData = filterFteData(unofficialFte);
+  const netRevenueParams = [
+    filteredAccountingData,
+    filteredUnofficialFteData,
+    officialFte,
+  ];
   // perform group by & having clauses
 
   // pass these filtered datasets & official fte dataset to NetRevenue below
+
+  // create example for chad to use
 
   console.log("accounting", filteredAccountingData);
 
@@ -97,7 +149,7 @@ export default function App() {
 
   if (everyDate && !selectedDate) setSelectedDate(everyDate[0]);
 
-  // accoutingData - Should be filtered on SELECTED_DATE <= transaction_date
+  // accoutingData - Should be filtered on <= transaction_date
 
   /*
   unofficialFTE - Should be filtered like so....
@@ -106,22 +158,31 @@ export default function App() {
   having max(effective_date) = effective_date.
   */
 
+  // what if you sorted first, and then mapped each array to its first element?
+
   const [netRevenue, setNetRevenue] = useState();
 
-  const rerunData = () => setNetRevenue(new NetRevenue(...datasets));
+  const rerunData = () => setNetRevenue(new NetRevenue(...netRevenueParams));
 
   usePrevious(deferredSelectedDate, rerunData);
 
-  const formattedData = buildNetRevenueData(netRevenue);
+  const formattedData = useMemo(
+    () => buildNetRevenueData(netRevenue),
+    [netRevenue]
+  );
 
-  const rowData = fixRowData(formattedData);
+  const rowData = useMemo(() => fixRowData(formattedData), [formattedData]);
 
-  const columnDefs = getColumnDefs(rowData);
+  const columnDefs = useMemo(() => getColumnDefs(rowData), [rowData]);
 
-  const bestRowData = addProperBlanks(rowData, columnDefs);
+  const bestRowData = useMemo(
+    () => addProperBlanks(rowData, columnDefs),
+    [rowData, columnDefs]
+  );
 
-  const bestColumnDefs = columnDefs.filter(({ field }) =>
-    fieldsToShow.has(field)
+  const bestColumnDefs = useMemo(
+    () => columnDefs.filter(({ field }) => fieldsToShow.has(field)),
+    [columnDefs]
   );
 
   return (
@@ -133,26 +194,21 @@ export default function App() {
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <ul className="list-group overflow-y-scroll" style={{ height: 205 }}>
             {makeArray(everyDate).map((date) => (
-              <li
-                className={[
-                  "list-group-item",
-                  date === selectedDate ? "active" : "",
-                ]
-                  .filter((element) => element)
-                  .join(" ")}
-                onClick={() => setSelectedDate(date)}
+              <ListGroupItem
+                active={date === selectedDate}
+                formatter={parseDateString}
+                onClick={setSelectedDate}
+                value={date}
                 key={date}
-              >
-                {parseDateString(date)}
-              </li>
+              ></ListGroupItem>
             ))}
           </ul>
         </div>
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>
             <AgGridReact
-              onGridSizeChanged={({ api }) => api.sizeColumnsToFit()}
-              onRowDataUpdated={({ api }) => api.sizeColumnsToFit()}
+              onGridSizeChanged={autoSizeGrid}
+              onRowDataUpdated={autoSizeGrid}
               defaultColDef={defaultColDef}
               columnDefs={bestColumnDefs}
               domLayout="autoHeight"
