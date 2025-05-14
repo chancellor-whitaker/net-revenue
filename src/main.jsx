@@ -6,6 +6,7 @@ import "./index.css";
 import { StrictMode } from "react";
 
 import App from "./App.jsx";
+import "react-calendar/dist/Calendar.css";
 
 // Register all Community features
 ModuleRegistry.registerModules([AllCommunityModule]);

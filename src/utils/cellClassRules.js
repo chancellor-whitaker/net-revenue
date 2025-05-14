@@ -39,7 +39,7 @@ export const cellClassRules = {
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
-      ]).has(data.name);
+      ]).has(data?.name);
     }
   },
   "bg-secondary-subtle": ({ colDef: { field }, data }) => {
@@ -55,7 +55,7 @@ export const cellClassRules = {
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
-      ]).has(data.name);
+      ]).has(data?.name);
     }
   },
   "border-dark": ({ colDef: { field }, data }) => {
@@ -71,7 +71,7 @@ export const cellClassRules = {
         "Housing Grants",
         "Scholarships",
         "SAFE Fund",
-      ]).has(data.name);
+      ]).has(data?.name);
     }
   },
   small: ({ colDef: { field }, value }) => {
@@ -101,7 +101,7 @@ export const cellClassRules = {
         "Athletic Scholarships",
         "Housing Grants",
         "SAFE Fund",
-      ]).has(data.name);
+      ]).has(data?.name);
     }
   },
   "border-bottom-0": ({ colDef: { field }, data }) => {
@@ -115,7 +115,7 @@ export const cellClassRules = {
         "Athletic Scholarships",
         "Housing Grants",
         "Scholarships",
-      ]).has(data.name);
+      ]).has(data?.name);
     }
   },
   "bg-warning-subtle": ({ data }) => {
@@ -129,7 +129,7 @@ export const cellClassRules = {
       "Net Revenue",
       "BookSmart",
       "FTE",
-    ]).has(data.name);
+    ]).has(data?.name);
   },
   "border-dashed": ({ colDef: { field }, data }) => {
     if (new Set(years).has(field)) {
@@ -137,13 +137,13 @@ export const cellClassRules = {
         "Other/External Grant/Scholarship",
         "Federal Grant/Scholarship",
         "State Grant/Scholarship",
-      ]).has(data.name);
+      ]).has(data?.name);
     }
   },
   "text-center": ({ colDef: { field } }) =>
     new Set(["Definition", "Notes"]).has(field),
   "bg-white": ({ data }) => {
-    return data.name === "";
+    return data?.name === "";
   },
   "fw-bold": ({ colDef: { field } }) => field === "name",
   dollar: ({ value }) => `${value}`.startsWith("$"),

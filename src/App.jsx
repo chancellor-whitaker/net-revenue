@@ -1,5 +1,6 @@
-import { useDeferredValue, useState, useMemo, memo } from "react";
+import { useState, useMemo, memo } from "react";
 import { AgGridReact } from "ag-grid-react";
+import Calendar from "react-calendar";
 import { csv } from "d3-fetch";
 
 import { buildNetRevenueData } from "./utils/buildNetRevenueData";
@@ -9,13 +10,13 @@ import { splitIntoGroups } from "./utils/splitIntoGroups";
 import { getColumnDefs } from "./utils/getColumnDefs";
 import { defaultColDef } from "./utils/defaultColDef";
 import { getEveryValue } from "./utils/getEveryValue";
+import { getDateByYear } from "./utils/getDateByYear";
 import { fieldsToShow } from "./utils/fieldsToShow";
 import { usePrevious } from "./hooks/usePrevious";
 import { usePromise } from "./hooks/usePromise";
 import { fixRowData } from "./utils/fixRowData";
 import { NetRevenue } from "./utils/NetRevenue";
 import { makeArray } from "./utils/makeArray";
-// import { promise } from "./utils/promise";
 
 // ? try to make your table look as much like hers as possible
 // ? showing definition/note on click popup icon by name (column A) in table
@@ -42,12 +43,6 @@ const datasetsPromise = Promise.all(
   datasetsOrder.map((fileName) => csv(`data/NET_REV/${fileName}.csv`))
 );
 
-// const filterDataPromise = Promise.all(
-//   ["STVLEVL", "STVRESD", "STVSTYP"].map((fileName) =>
-//     csv(`data/NET_REV/${fileName}.csv`)
-//   )
-// );
-
 const dateKeys = { accounting: "TRANSACTION_DATE", fte: "EFFECTIVE_DATE" };
 
 const makeDate = (param) => new Date(param);
@@ -57,15 +52,16 @@ const groupBy = ["YEAR", "LEVL", "EKU_ONLINE", "RESD", "STYP"];
 const sortFte = ({ [dateKeys.fte]: a }, { [dateKeys.fte]: b }) =>
   makeDate(parseDateString(b)) - makeDate(parseDateString(a));
 
-const filterAccountingData = (data, dateValue) =>
+const filterAccountingData = (data, dateLookup) =>
   makeArray(data).filter(
-    ({ [dateKeys.accounting]: date }) =>
-      makeDate(parseDateString(date)) <= dateValue
+    ({ [dateKeys.accounting]: date, YEAR: year }) =>
+      makeDate(parseDateString(date)) <= dateLookup[year]["Execution Date"]
   );
 
-const filterFteData = (data, dateValue) =>
+const filterFteData = (data, dateLookup) =>
   makeArray(data).filter(
-    ({ [dateKeys.fte]: date }) => makeDate(parseDateString(date)) <= dateValue
+    ({ [dateKeys.fte]: date, YEAR: year }) =>
+      makeDate(parseDateString(date)) <= dateLookup[year]["Execution Date"]
   );
 
 const autoSizeGrid = ({ api }) => api.sizeColumnsToFit();
@@ -82,6 +78,9 @@ const ListGroupItem = memo(({ formatter, onClick, active, value }) => {
     </li>
   );
 });
+
+// add as of date to columns in grid
+// just pull year_dates to see which date gets compared when filtering based on year
 
 export default function App() {
   const datasets = usePromise(datasetsPromise);
@@ -111,43 +110,46 @@ export default function App() {
 
   const [selectedDate, setSelectedDate] = useState();
 
-  const deferredSelectedDate = useDeferredValue(selectedDate);
-
-  const selectedDateValue = useMemo(
-    () => makeDate(parseDateString(selectedDate)),
-    [selectedDate]
+  const dateLookup = useMemo(
+    () =>
+      Object.fromEntries(
+        getDateByYear(makeArray(unofficialFte), selectedDate).map((element) => [
+          element.YEAR,
+          element,
+        ])
+      ),
+    [selectedDate, unofficialFte]
   );
 
   const filteredAccountingData = useMemo(
-    () => filterAccountingData(accountingData, selectedDateValue),
-    [accountingData, selectedDateValue]
+    () => filterAccountingData(accountingData, dateLookup),
+    [accountingData, dateLookup]
   );
 
   const filteredUnofficialFteData = useMemo(
     () =>
       splitIntoGroups(
-        filterFteData(unofficialFte, selectedDateValue).sort(sortFte),
+        filterFteData(unofficialFte, dateLookup).sort(sortFte),
         groupBy
       ).map((group) => group[0]),
-    [unofficialFte, selectedDateValue]
+    [unofficialFte, dateLookup]
   );
+
+  console.log("date lookup", dateLookup);
+
+  console.log("accounting", filteredAccountingData);
+
+  console.log("unofficial", filteredUnofficialFteData);
 
   const netRevenueParams = [
     filteredAccountingData,
     filteredUnofficialFteData,
     officialFte,
+    selectedDate,
   ];
-  // perform group by & having clauses
 
-  // pass these filtered datasets & official fte dataset to NetRevenue below
-
-  // create example for chad to use
-
-  console.log("accounting", filteredAccountingData);
-
-  console.log("unofficial fte", filteredUnofficialFteData);
-
-  if (everyDate && !selectedDate) setSelectedDate(everyDate[0]);
+  if (everyDate && !selectedDate)
+    setSelectedDate(new Date(parseDateString(everyDate[0])));
 
   // accoutingData - Should be filtered on <= transaction_date
 
@@ -164,7 +166,9 @@ export default function App() {
 
   const rerunData = () => setNetRevenue(new NetRevenue(...netRevenueParams));
 
-  usePrevious(deferredSelectedDate, rerunData);
+  console.log("chad's date lookup", netRevenue?.year_dates);
+
+  usePrevious(selectedDate, rerunData);
 
   const formattedData = useMemo(
     () => buildNetRevenueData(netRevenue),
@@ -189,9 +193,12 @@ export default function App() {
     <>
       <main className="container">
         <div className="my-3 p-3 bg-body rounded shadow-sm">
-          {parseDateString(selectedDate)}
+          {selectedDate?.toLocaleDateString()}
         </div>
         <div className="my-3 p-3 bg-body rounded shadow-sm">
+          <Calendar onChange={setSelectedDate} value={selectedDate} />
+        </div>
+        {/* <div className="my-3 p-3 bg-body rounded shadow-sm">
           <ul className="list-group overflow-y-scroll" style={{ height: 205 }}>
             {makeArray(everyDate).map((date) => (
               <ListGroupItem
@@ -203,7 +210,7 @@ export default function App() {
               ></ListGroupItem>
             ))}
           </ul>
-        </div>
+        </div> */}
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>
             <AgGridReact
