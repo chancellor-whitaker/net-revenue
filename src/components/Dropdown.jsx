@@ -1,6 +1,6 @@
 import { usePopover } from "../hooks/usePopover";
 
-export const Dropdown = ({ onItemClick, active, field, list }) => {
+export const Dropdown = ({ onItemClick, children, active, field, list }) => {
   const { popover, isOpen, open } = usePopover();
 
   return (
@@ -15,7 +15,7 @@ export const Dropdown = ({ onItemClick, active, field, list }) => {
         onClick={open}
         type="button"
       >
-        {field}
+        {children ? children : field}
       </button>
       {isOpen && (
         <ul

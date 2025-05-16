@@ -85,6 +85,12 @@ const filterFteData = (data, dateLookup) =>
 const findIndexOfName = (rowData, string) =>
   rowData.filter((element) => element).findIndex(({ name }) => name === string);
 
+const dropdownFieldLabels = {
+  STYP: "Student type",
+  RESD: "Residency",
+  LEVL: "Level",
+};
+
 export default function App() {
   const datasets = usePromise(datasetsPromise);
 
@@ -280,7 +286,9 @@ export default function App() {
                   field={field}
                   active={set}
                   key={field}
-                ></Dropdown>
+                >
+                  {dropdownFieldLabels[field]}
+                </Dropdown>
               ))}
           </div>
         </div>
