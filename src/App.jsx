@@ -1,10 +1,13 @@
+import { useCallback, useState, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { useState, useMemo } from "react";
 import Calendar from "react-calendar";
 import { csv } from "d3-fetch";
 
 import { buildNetRevenueData } from "./utils/buildNetRevenueData";
+import { splitArrayAtElement } from "./utils/splitArrayAtElement";
+import { handleAsOfDateField } from "./utils/handleAsOfDateField";
 import { SimpleLineChart } from "./components/SimpleLineChart";
+import { highlightedNames } from "./utils/highlightedNames";
 import { addProperBlanks } from "./utils/addProperBlanks";
 import { parseDateString } from "./utils/parseDateString";
 import { splitIntoGroups } from "./utils/splitIntoGroups";
@@ -14,10 +17,12 @@ import { getDateByYear } from "./utils/getDateByYear";
 import { fieldsToShow } from "./utils/fieldsToShow";
 import { autoSizeGrid } from "./utils/autoSizeGrid";
 import { usePrevious } from "./hooks/usePrevious";
+import { Dropdown } from "./components/Dropdown";
 import { usePromise } from "./hooks/usePromise";
 import { fixRowData } from "./utils/fixRowData";
 import { NetRevenue } from "./utils/NetRevenue";
 import { formatDate } from "./utils/formatDate";
+import { filterRows } from "./utils/filterRows";
 import { makeArray } from "./utils/makeArray";
 import { makeDate } from "./utils/makeDate";
 
@@ -35,17 +40,28 @@ import { makeDate } from "./utils/makeDate";
 // * make table minimally scrollable (no y scroll)
 // * surround with empty rows--net rev per fte through fte
 
+const dropdownKeyPrefix = "STV";
+
+const dropdownOrder = [
+  `${dropdownKeyPrefix}LEVL`,
+  `${dropdownKeyPrefix}RESD`,
+  `${dropdownKeyPrefix}STYP`,
+];
+
 const constants = {
   datasetsPromise: Promise.all(
     ["NET_REV_STU_ACCT", "NET_REV_FTE", "NET_REV_OFF_FTE"].map((fileName) =>
       csv(`data/NET_REV/${fileName}.csv`)
     )
   ),
+  dropdownsPromise: Promise.all(
+    dropdownOrder.map((fileName) => csv(`data/NET_REV/${fileName}.csv`))
+  ),
   dateKeys: { accounting: "TRANSACTION_DATE", fte: "EFFECTIVE_DATE" },
   groupBy: ["YEAR", "LEVL", "EKU_ONLINE", "RESD", "STYP"],
 };
 
-const { datasetsPromise, dateKeys, groupBy } = constants;
+const { dropdownsPromise, datasetsPromise, dateKeys, groupBy } = constants;
 
 const sortFte = ({ [dateKeys.fte]: a }, { [dateKeys.fte]: b }) =>
   makeDate(parseDateString(b)) - makeDate(parseDateString(a));
@@ -63,19 +79,82 @@ const filterFteData = (data, dateLookup) =>
   );
 
 // ? change autosize behavior based on width of grid
-// ! as of date as a row under column headers
 // ! line chart  (all yellow above fte)
 // ! filters for level, online, residency, & student type
+
+const findIndexOfName = (rowData, string) =>
+  rowData.filter((element) => element).findIndex(({ name }) => name === string);
 
 export default function App() {
   const datasets = usePromise(datasetsPromise);
 
-  const array = useMemo(
-    () => [datasets].filter((element) => element).flat(),
-    [datasets]
-  );
+  const dropdownLists = usePromise(dropdownsPromise);
 
-  const [accountingData, unofficialFte, officialFte] = array;
+  const [dropdowns, setDropdowns] = useState();
+
+  const [initialDropdowns, dropdownItems] = useMemo(() => {
+    const initialDropdowns = Object.fromEntries(
+      dropdownOrder.map((field) => [
+        field.substring(dropdownKeyPrefix.length),
+        new Set(),
+      ])
+    );
+
+    const dropdownValueLabels = Object.fromEntries(
+      dropdownOrder.map((field) => [
+        field.substring(dropdownKeyPrefix.length),
+        {},
+      ])
+    );
+
+    const lists = makeArray(dropdownLists);
+
+    lists.forEach((list, index) => {
+      const field = dropdownOrder[index].substring(dropdownKeyPrefix.length);
+
+      list.forEach((item) => {
+        const [value, label] = [
+          item[`${dropdownKeyPrefix}${field}_CODE`],
+          item[`${dropdownKeyPrefix}${field}_DESC`],
+        ];
+
+        initialDropdowns[field].add(value);
+
+        dropdownValueLabels[field][value] = label;
+      });
+    });
+
+    const dropdownItems = Object.fromEntries(
+      Object.entries(dropdownValueLabels).map(([field, pairs]) => [
+        field,
+        Object.entries(pairs).map(([value, label]) => ({ value, label })),
+      ])
+    );
+
+    return [initialDropdowns, dropdownItems];
+  }, [dropdownLists]);
+
+  console.log(dropdownItems);
+
+  const onDropdownItemClick = useCallback(({ field, value }) => {
+    setDropdowns((currentState) => {
+      const nextState = { ...currentState };
+
+      nextState[field] = new Set(nextState[field]);
+
+      if (nextState[field].has(value)) {
+        nextState[field].delete(value);
+      } else {
+        nextState[field].add(value);
+      }
+
+      return nextState;
+    });
+  }, []);
+
+  const datasetsArray = useMemo(() => makeArray(datasets), [datasets]);
+
+  const [accountingData, unofficialFte, officialFte] = datasetsArray;
 
   const [selectedDate, setSelectedDate] = useState();
 
@@ -90,17 +169,21 @@ export default function App() {
   );
 
   const filteredAccountingData = useMemo(
-    () => filterAccountingData(accountingData, dateLookup),
-    [accountingData, dateLookup]
+    () =>
+      filterRows(filterAccountingData(accountingData, dateLookup), dropdowns),
+    [accountingData, dateLookup, dropdowns]
   );
 
   const filteredUnofficialFteData = useMemo(
     () =>
-      splitIntoGroups(
-        filterFteData(unofficialFte, dateLookup).sort(sortFte),
-        groupBy
-      ).map((group) => group[0]),
-    [unofficialFte, dateLookup]
+      filterRows(
+        splitIntoGroups(
+          filterFteData(unofficialFte, dateLookup).sort(sortFte),
+          groupBy
+        ).map((group) => group[0]),
+        dropdowns
+      ),
+    [unofficialFte, dateLookup, dropdowns]
   );
 
   const netRevenueParams = [
@@ -114,11 +197,18 @@ export default function App() {
 
   const initializeCalendar = () => setSelectedDate(new Date());
 
+  const initializeDropdowns = () => setDropdowns(initialDropdowns);
+
+  usePrevious(initialDropdowns, initializeDropdowns);
+
   usePrevious(datasets, initializeCalendar);
 
-  const rerunData = () => setNetRevenue(new NetRevenue(...netRevenueParams));
+  const rerunData = () =>
+    datasets && setNetRevenue(new NetRevenue(...netRevenueParams));
 
   usePrevious(selectedDate, rerunData);
+
+  usePrevious(dropdowns, rerunData);
 
   const formattedData = useMemo(
     () => buildNetRevenueData(netRevenue),
@@ -132,29 +222,31 @@ export default function App() {
 
   const categoricalDataKey = "Year";
 
-  const numericalDataKeys = useMemo(
-    () => [
-      ...new Set(
-        chartData
-          .map((row) =>
-            Object.entries(row)
-              .filter(([, value]) => typeof value === "number")
-              .map(([key]) => key)
-          )
-          .flat()
-      ),
-    ],
-    [chartData]
-  );
-
   const rowData = useMemo(() => fixRowData(formattedData), [formattedData]);
 
   const columnDefs = useMemo(() => getColumnDefs(rowData), [rowData]);
 
   const bestRowData = useMemo(
-    () => addProperBlanks(rowData, columnDefs),
-    [rowData, columnDefs]
+    () => [
+      Object.fromEntries(
+        columnDefs.map(({ field }) => [
+          field,
+          handleAsOfDateField(field, dateLookup),
+        ])
+      ),
+      ...addProperBlanks(rowData, columnDefs),
+    ],
+    [rowData, columnDefs, dateLookup]
   );
+
+  const numericalDataKeys = useMemo(() => {
+    const highlightedNamesSorted = [...highlightedNames].sort(
+      (a, b) =>
+        findIndexOfName(bestRowData, a) - findIndexOfName(bestRowData, b)
+    );
+
+    return splitArrayAtElement(highlightedNamesSorted, "FTE")[0];
+  }, [bestRowData]);
 
   const bestColumnDefs = useMemo(
     () => columnDefs.filter(({ field }) => fieldsToShow.has(field)),
@@ -169,6 +261,20 @@ export default function App() {
         </div>
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <Calendar onChange={setSelectedDate} value={selectedDate} />
+        </div>
+        <div className="my-3 p-3 bg-body rounded shadow-sm">
+          <div className="d-flex gap-3 flex-wrap">
+            {dropdowns &&
+              Object.entries(dropdowns).map(([field, set]) => (
+                <Dropdown
+                  onItemClick={onDropdownItemClick}
+                  list={dropdownItems[field]}
+                  field={field}
+                  active={set}
+                  key={field}
+                ></Dropdown>
+              ))}
+          </div>
         </div>
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>

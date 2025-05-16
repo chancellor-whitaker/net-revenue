@@ -1,3 +1,5 @@
+import { highlightedNames } from "./highlightedNames";
+
 const years = ["2020-2021", "2021-2022", "2022-2023", "2023-2024"];
 
 const allButLastYear = years.slice(0, -1);
@@ -118,19 +120,6 @@ export const cellClassRules = {
       ]).has(data?.name);
     }
   },
-  "bg-warning-subtle": ({ data }) => {
-    return new Set([
-      "Institutional Aid less State Waivers and Foundation",
-      "Institutional Grant/Scholarship Aid",
-      "Revenue after external aid",
-      "Total Student Credit Hours",
-      "Total External Aid",
-      "Tuition & Fees",
-      "Net Revenue",
-      "BookSmart",
-      "FTE",
-    ]).has(data?.name);
-  },
   "border-dashed": ({ colDef: { field }, data }) => {
     if (new Set(years).has(field)) {
       return new Set([
@@ -139,6 +128,9 @@ export const cellClassRules = {
         "State Grant/Scholarship",
       ]).has(data?.name);
     }
+  },
+  "bg-warning-subtle": ({ data }) => {
+    return new Set(highlightedNames).has(data?.name);
   },
   "text-center": ({ colDef: { field } }) =>
     new Set(["Definition", "Notes"]).has(field),
