@@ -1,0 +1,6 @@
+STVRESD_CODE,STVRESD_DESC,STVRESD_IN_STATE_IND,IN_STATE_DESC
+R,In state Resident,I,In-State
+O,Out of state Resident,O,Out-of-State
+0,Undeclared,O,Out-of-State
+I,International Resident,O,Out-of-State
+T,Reduced Tuition,O,Out-of-State

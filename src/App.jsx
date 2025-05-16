@@ -1,28 +1,26 @@
-import { useState, useMemo, memo } from "react";
 import { AgGridReact } from "ag-grid-react";
+import { useState, useMemo } from "react";
 import Calendar from "react-calendar";
 import { csv } from "d3-fetch";
 
 import { buildNetRevenueData } from "./utils/buildNetRevenueData";
+import { SimpleLineChart } from "./components/SimpleLineChart";
 import { addProperBlanks } from "./utils/addProperBlanks";
 import { parseDateString } from "./utils/parseDateString";
 import { splitIntoGroups } from "./utils/splitIntoGroups";
 import { getColumnDefs } from "./utils/getColumnDefs";
 import { defaultColDef } from "./utils/defaultColDef";
-import { getEveryValue } from "./utils/getEveryValue";
 import { getDateByYear } from "./utils/getDateByYear";
 import { fieldsToShow } from "./utils/fieldsToShow";
+import { autoSizeGrid } from "./utils/autoSizeGrid";
 import { usePrevious } from "./hooks/usePrevious";
 import { usePromise } from "./hooks/usePromise";
 import { fixRowData } from "./utils/fixRowData";
 import { NetRevenue } from "./utils/NetRevenue";
+import { formatDate } from "./utils/formatDate";
 import { makeArray } from "./utils/makeArray";
+import { makeDate } from "./utils/makeDate";
 
-// ? try to make your table look as much like hers as possible
-// ? showing definition/note on click popup icon by name (column A) in table
-// filters for level, online, residency, & student type (filter on full date & year)
-// change autosize behavior based on width of grid
-// math formatting in definitions?
 // * create table data using NetRevenue class
 // * highlight specific rows (special rows)
 // * maybe change color of empty rows (could just be white)
@@ -37,17 +35,17 @@ import { makeArray } from "./utils/makeArray";
 // * make table minimally scrollable (no y scroll)
 // * surround with empty rows--net rev per fte through fte
 
-const datasetsOrder = ["NET_REV_STU_ACCT", "NET_REV_FTE", "NET_REV_OFF_FTE"];
+const constants = {
+  datasetsPromise: Promise.all(
+    ["NET_REV_STU_ACCT", "NET_REV_FTE", "NET_REV_OFF_FTE"].map((fileName) =>
+      csv(`data/NET_REV/${fileName}.csv`)
+    )
+  ),
+  dateKeys: { accounting: "TRANSACTION_DATE", fte: "EFFECTIVE_DATE" },
+  groupBy: ["YEAR", "LEVL", "EKU_ONLINE", "RESD", "STYP"],
+};
 
-const datasetsPromise = Promise.all(
-  datasetsOrder.map((fileName) => csv(`data/NET_REV/${fileName}.csv`))
-);
-
-const dateKeys = { accounting: "TRANSACTION_DATE", fte: "EFFECTIVE_DATE" };
-
-const makeDate = (param) => new Date(param);
-
-const groupBy = ["YEAR", "LEVL", "EKU_ONLINE", "RESD", "STYP"];
+const { datasetsPromise, dateKeys, groupBy } = constants;
 
 const sortFte = ({ [dateKeys.fte]: a }, { [dateKeys.fte]: b }) =>
   makeDate(parseDateString(b)) - makeDate(parseDateString(a));
@@ -64,23 +62,10 @@ const filterFteData = (data, dateLookup) =>
       makeDate(parseDateString(date)) <= dateLookup[year]["Execution Date"]
   );
 
-const autoSizeGrid = ({ api }) => api.sizeColumnsToFit();
-
-const ListGroupItem = memo(({ formatter, onClick, active, value }) => {
-  return (
-    <li
-      className={["list-group-item", active ? "active" : ""]
-        .filter((element) => element)
-        .join(" ")}
-      onClick={() => onClick(value)}
-    >
-      {formatter(value)}
-    </li>
-  );
-});
-
-// add as of date to columns in grid
-// just pull year_dates to see which date gets compared when filtering based on year
+// ? change autosize behavior based on width of grid
+// ! as of date as a row under column headers
+// ! line chart  (all yellow above fte)
+// ! filters for level, online, residency, & student type
 
 export default function App() {
   const datasets = usePromise(datasetsPromise);
@@ -92,31 +77,14 @@ export default function App() {
 
   const [accountingData, unofficialFte, officialFte] = array;
 
-  const everyValue = useMemo(
-    () => getEveryValue(accountingData),
-    [accountingData]
-  );
-
-  const everyDate = useMemo(
-    () =>
-      everyValue[dateKeys.accounting]
-        ? everyValue[dateKeys.accounting].sort(
-            (a, b) =>
-              makeDate(parseDateString(b)) - makeDate(parseDateString(a))
-          )
-        : null,
-    [everyValue]
-  );
-
   const [selectedDate, setSelectedDate] = useState();
 
   const dateLookup = useMemo(
     () =>
       Object.fromEntries(
-        getDateByYear(makeArray(unofficialFte), selectedDate).map((element) => [
-          element.YEAR,
-          element,
-        ])
+        getDateByYear(makeArray(unofficialFte), formatDate(selectedDate)).map(
+          (element) => [element.YEAR, element]
+        )
       ),
     [selectedDate, unofficialFte]
   );
@@ -135,44 +103,48 @@ export default function App() {
     [unofficialFte, dateLookup]
   );
 
-  console.log("date lookup", dateLookup);
-
-  console.log("accounting", filteredAccountingData);
-
-  console.log("unofficial", filteredUnofficialFteData);
-
   const netRevenueParams = [
     filteredAccountingData,
     filteredUnofficialFteData,
     officialFte,
-    selectedDate,
+    formatDate(selectedDate),
   ];
-
-  if (everyDate && !selectedDate)
-    setSelectedDate(new Date(parseDateString(everyDate[0])));
-
-  // accoutingData - Should be filtered on <= transaction_date
-
-  /*
-  unofficialFTE - Should be filtered like so....
-  where effective_date <= SELECTED_DATE
-  group by YEAR, LEVL, EKU_ONLINE, RESD, STYP
-  having max(effective_date) = effective_date.
-  */
-
-  // what if you sorted first, and then mapped each array to its first element?
 
   const [netRevenue, setNetRevenue] = useState();
 
-  const rerunData = () => setNetRevenue(new NetRevenue(...netRevenueParams));
+  const initializeCalendar = () => setSelectedDate(new Date());
 
-  console.log("chad's date lookup", netRevenue?.year_dates);
+  usePrevious(datasets, initializeCalendar);
+
+  const rerunData = () => setNetRevenue(new NetRevenue(...netRevenueParams));
 
   usePrevious(selectedDate, rerunData);
 
   const formattedData = useMemo(
     () => buildNetRevenueData(netRevenue),
     [netRevenue]
+  );
+
+  const chartData = useMemo(
+    () => Object.values(netRevenue?.value ? netRevenue.value : {}),
+    [netRevenue]
+  );
+
+  const categoricalDataKey = "Year";
+
+  const numericalDataKeys = useMemo(
+    () => [
+      ...new Set(
+        chartData
+          .map((row) =>
+            Object.entries(row)
+              .filter(([, value]) => typeof value === "number")
+              .map(([key]) => key)
+          )
+          .flat()
+      ),
+    ],
+    [chartData]
   );
 
   const rowData = useMemo(() => fixRowData(formattedData), [formattedData]);
@@ -198,19 +170,6 @@ export default function App() {
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <Calendar onChange={setSelectedDate} value={selectedDate} />
         </div>
-        {/* <div className="my-3 p-3 bg-body rounded shadow-sm">
-          <ul className="list-group overflow-y-scroll" style={{ height: 205 }}>
-            {makeArray(everyDate).map((date) => (
-              <ListGroupItem
-                active={date === selectedDate}
-                formatter={parseDateString}
-                onClick={setSelectedDate}
-                value={date}
-                key={date}
-              ></ListGroupItem>
-            ))}
-          </ul>
-        </div> */}
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>
             <AgGridReact
@@ -223,6 +182,13 @@ export default function App() {
               tooltipShowDelay={0}
             />
           </div>
+        </div>
+        <div className="my-3 p-3 bg-body rounded shadow-sm">
+          <SimpleLineChart
+            categoricalDataKey={categoricalDataKey}
+            numericalDataKeys={numericalDataKeys}
+            data={chartData}
+          ></SimpleLineChart>
         </div>
       </main>
     </>
