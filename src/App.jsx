@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useDeferredValue, useCallback, useState, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import Calendar from "react-calendar";
 import { csv } from "d3-fetch";
@@ -92,6 +92,8 @@ export default function App() {
 
   const [dropdowns, setDropdowns] = useState();
 
+  const deferredDropdowns = useDeferredValue(dropdowns);
+
   const [initialDropdowns, dropdownItems] = useMemo(() => {
     const initialDropdowns = Object.fromEntries(
       dropdownOrder.map((field) => [
@@ -158,20 +160,26 @@ export default function App() {
 
   const [selectedDate, setSelectedDate] = useState();
 
+  const deferredSelectedDate = useDeferredValue(selectedDate);
+
   const dateLookup = useMemo(
     () =>
       Object.fromEntries(
-        getDateByYear(makeArray(unofficialFte), formatDate(selectedDate)).map(
-          (element) => [element.YEAR, element]
-        )
+        getDateByYear(
+          makeArray(unofficialFte),
+          formatDate(deferredSelectedDate)
+        ).map((element) => [element.YEAR, element])
       ),
-    [selectedDate, unofficialFte]
+    [deferredSelectedDate, unofficialFte]
   );
 
   const filteredAccountingData = useMemo(
     () =>
-      filterRows(filterAccountingData(accountingData, dateLookup), dropdowns),
-    [accountingData, dateLookup, dropdowns]
+      filterRows(
+        filterAccountingData(accountingData, dateLookup),
+        deferredDropdowns
+      ),
+    [accountingData, dateLookup, deferredDropdowns]
   );
 
   const filteredUnofficialFteData = useMemo(
@@ -181,16 +189,16 @@ export default function App() {
           filterFteData(unofficialFte, dateLookup).sort(sortFte),
           groupBy
         ).map((group) => group[0]),
-        dropdowns
+        deferredDropdowns
       ),
-    [unofficialFte, dateLookup, dropdowns]
+    [unofficialFte, dateLookup, deferredDropdowns]
   );
 
   const netRevenueParams = [
     filteredAccountingData,
     filteredUnofficialFteData,
     officialFte,
-    formatDate(selectedDate),
+    formatDate(deferredSelectedDate),
   ];
 
   const [netRevenue, setNetRevenue] = useState();
@@ -206,9 +214,9 @@ export default function App() {
   const rerunData = () =>
     datasets && setNetRevenue(new NetRevenue(...netRevenueParams));
 
-  usePrevious(selectedDate, rerunData);
+  usePrevious(deferredSelectedDate, rerunData);
 
-  usePrevious(dropdowns, rerunData);
+  usePrevious(deferredDropdowns, rerunData);
 
   const formattedData = useMemo(
     () => buildNetRevenueData(netRevenue),
@@ -279,6 +287,10 @@ export default function App() {
         <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div>
             <AgGridReact
+              loading={
+                deferredDropdowns !== dropdowns ||
+                deferredSelectedDate !== selectedDate
+              }
               onGridSizeChanged={autoSizeGrid}
               onRowDataUpdated={autoSizeGrid}
               defaultColDef={defaultColDef}
