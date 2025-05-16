@@ -1,6 +1,6 @@
 import { highlightedNames } from "./highlightedNames";
 
-const years = ["2020-2021", "2021-2022", "2022-2023", "2023-2024"];
+const years = ["2020-2021", "2021-2022", "2022-2023", "2023-2024", "2024-2025"];
 
 const allButLastYear = years.slice(0, -1);
 
@@ -129,11 +129,15 @@ export const cellClassRules = {
       ]).has(data?.name);
     }
   },
+  "text-center": ({ colDef: { field }, data }) => {
+    return (
+      new Set(["Definition", "Notes"]).has(field) ||
+      (data?.name === "As of Date" && field !== "name")
+    );
+  },
   "bg-warning-subtle": ({ data }) => {
     return new Set(highlightedNames).has(data?.name);
   },
-  "text-center": ({ colDef: { field } }) =>
-    new Set(["Definition", "Notes"]).has(field),
   "bg-white": ({ data }) => {
     return data?.name === "";
   },

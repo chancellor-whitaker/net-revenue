@@ -91,6 +91,13 @@ const dropdownFieldLabels = {
   LEVL: "Level",
 };
 
+// ! eku online filter
+// ! slow down
+// ! checkbox dropdown items
+// ! calendar popover (could put date on button)
+// ! select different parameters (lines) on line chart
+// ? narrow row & remove "As of Date"
+
 export default function App() {
   const datasets = usePromise(datasetsPromise);
 
