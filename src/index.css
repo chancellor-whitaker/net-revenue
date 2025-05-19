@@ -27,3 +27,8 @@ body {
 svg.recharts-surface {
   overflow: visible;
 }
+
+.ag-root-wrapper,
+.btn {
+  box-shadow: var(--bs-box-shadow-sm) !important;
+}

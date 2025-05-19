@@ -11,7 +11,7 @@
  *
  * Class usage example:
  *
- * const v = new NetRevenue(accoutingData, unofficialFTE, officialFTE, searchDate, bookSmart);
+ * const v = new NetRevenue(accoutingData, unofficialFTE, officialFTE);
  *       - This kicks off all calculations and sets the class property (value).
  * console.log("Calculations: ", v.value);
  *       - Prints the property value.
@@ -126,9 +126,6 @@ export class NetRevenue {
   //   }
 
   calculate(accountingData, unofficialFTE, officialFTE, bookSmart) {
-    accountingData = this.getAcctTransactions(accountingData); // added this because it wasn't calculating based on date.
-    // This is not in Chance's version.
-
     this.tuitionAndFees(accountingData); // initializes this.value.
     this.federalGrantsScholarships(accountingData);
     this.stateGrantsScholarships(accountingData);
@@ -246,63 +243,6 @@ export class NetRevenue {
     return data;
   }
 
-  applyBookSmart(data) {
-    for (const key in this.value) {
-      //   console.log("KEY", key);
-      if (this.value.hasOwnProperty(key)) {
-        if (data.hasOwnProperty(key)) {
-          this.value[key]["BookSmart"] = data[key];
-          this.value[key]["Net Revenue w/ BookSmart"] =
-            this.value[key]["Net Revenue"] - this.value[key]["BookSmart"];
-
-          if (this.value[key]["Tuition & Fees"] == 0) {
-            this.value[key]["Discount Rate including BookSmart"] = NaN;
-          } else {
-            this.value[key]["Discount Rate including BookSmart"] =
-              (this.value[key]["BookSmart"] +
-                this.value[key][
-                  "Institutional Aid less State Waivers and Foundation"
-                ]) /
-              this.value[key]["Tuition & Fees"];
-          }
-        }
-      }
-    }
-
-    this.populateMissingKeys("BookSmart", NaN);
-    this.populateMissingKeys("Net Revenue w/ BookSmart", NaN);
-    this.populateMissingKeys("Discount Rate including BookSmart", NaN);
-  }
-
-  tuitionAndFees(data) {
-    // initialize this.value -- this holds all the values.
-    // var year_dates = [... this.year_dates];
-    var year_dates = structuredClone(this.year_dates); // this works now.
-    var today = new Date();
-    this.value = {};
-    for (var x of year_dates) {
-      if (x["Execution Date"] > today) x["Execution Date"] = today;
-
-      this.value[x["YEAR"]] = {
-        "As of Date": x["Execution Date"],
-        "Display Year": x["Display Year"],
-        Year: x["YEAR"],
-      };
-    }
-
-    const filtered = this.filterByKeys(data, { CATEGORY: ["TF"] });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      //   this.value[x["YEAR"]] = {};
-      this.value[x["YEAR"]]["Tuition & Fees"] = x["AMOUNT"];
-    }
-
-    this.populateMissingKeys("Tuition & Fees", 0);
-    // for (const key of Object.keys(this.value)) {
-    //   console.log(key, this.value[key]);
-    // }
-  }
-
   /**
    * This method attempts to give a cooresponding date for each year.
    * It is assumed the date being passed to this method will go with the max year in data.
@@ -318,8 +258,7 @@ export class NetRevenue {
    *    const net_revenue = new NetRevenue(null,null,null);
    *    const v = net_revenue.convertJsonValuesToNumeric(data, ["Frequency"]);
    */
-  yearsAndDates(data, year_var = "YEAR", date = "12/31/2199") {
-    console.log("DATE", date);
+  yearsAndDates(data, year_var = "YEAR", date = "12/12/2199") {
     if (this.isDate(date) && typeof value === "string") {
       date = Date.parse(value);
     }
@@ -346,6 +285,30 @@ export class NetRevenue {
     return x_dates;
   }
 
+  tuitionAndFees(data) {
+    // initialize this.value -- this holds all the values.
+    // var year_dates = [... this.year_dates];
+    var year_dates = structuredClone(this.year_dates); // this works now.
+    var today = new Date();
+    this.value = {};
+    for (var x of year_dates) {
+      if (x["Execution Date"] > today) x["Execution Date"] = today;
+
+      this.value[x["YEAR"]] = {
+        "As of Date": x["Execution Date"],
+        "Display Year": x["Display Year"],
+        Year: x["YEAR"],
+      };
+    }
+
+    const filtered = this.filterByKeys(data, { CATEGORY: ["TF"] });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      //   this.value[x["YEAR"]] = {};
+      this.value[x["YEAR"]]["Tuition & Fees"] = x["AMOUNT"];
+    }
+  }
+
   /**
    * This method filters an array of objects based on the provided filters and returns the filtered array.
    *
@@ -368,6 +331,7 @@ export class NetRevenue {
           if (type === "int") {
             newItem[column] = parseInt(newItem[column], 10);
           } else if (type === "float") {
+            newItem[column] = parseFloat(newItem[column]);
           } else if (type === "number") {
             newItem[column] = Number(newItem[column]);
           } else if (type === "string") {
@@ -378,48 +342,6 @@ export class NetRevenue {
         }
       });
       return newItem;
-    });
-  }
-
-  /**
-   * This method sorts a provided array of objects.
-   *
-   * @param {array of objects} array - The array of objects to be sorted.
-   * @param {array} keys - The keys to be sorted by.
-   *        example: ["YEAR", "EFFECTIVE_DATE"]
-   * @param {string} ordering - How to order the array.
-   *        ascending is the default option.
-   *        Any other value should be descending.
-   * @returns {array of objects} array - The sorted array of objects.
-   *
-   * Example usage:
-   * const sortedData = sortArr(data, ["YEAR", "EFFECTIVE_DATE"], ordering="descending");
-   */
-  sortArr(arr, keys, ordering = "ascending") {
-    // console.log(ordering);
-    return arr.sort((a, b) => {
-      //   console.log(ordering);
-      for (let key of keys) {
-        let comparison = 0;
-        if (typeof a[key] === "string" && typeof b[key] === "string") {
-          comparison = a[key].localeCompare(b[key]);
-        } else {
-          comparison = a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0;
-        }
-
-        if (ordering === "ascending") {
-          if (comparison !== 0) {
-            return comparison;
-          }
-        } else {
-          if (comparison !== 0) {
-            return comparison * -1;
-          }
-        }
-      }
-      return 0;
-
-      this.year;
     });
   }
 
@@ -461,6 +383,68 @@ export class NetRevenue {
     return Object.values(groupedData);
   }
 
+  sortArr(arr, keys, ordering = "ascending") {
+    // console.log(ordering);
+    return arr.sort((a, b) => {
+      //   console.log(ordering);
+      for (let key of keys) {
+        let comparison = 0;
+        if (typeof a[key] === "string" && typeof b[key] === "string") {
+          comparison = a[key].localeCompare(b[key]);
+        } else {
+          comparison = a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0;
+        }
+
+        if (ordering === "ascending") {
+          if (comparison !== 0) {
+            return comparison;
+          }
+        } else {
+          if (comparison !== 0) {
+            return comparison * -1;
+          }
+        }
+      }
+      return 0;
+    });
+  }
+
+  applyBookSmart(data) {
+    for (const key in this.value) {
+      //   console.log("KEY", key);
+      if (this.value.hasOwnProperty(key)) {
+        if (data.hasOwnProperty(key)) {
+          this.value[key]["BookSmart"] = data[key];
+          this.value[key]["Net Revenue w/ BookSmart"] =
+            this.value[key]["Net Revenue"] - this.value[key]["BookSmart"];
+          this.value[key]["Discount Rate including BookSmart"] =
+            (this.value[key]["BookSmart"] +
+              this.value[key][
+                "Institutional Aid less State Waivers and Foundation"
+              ]) /
+            this.value[key]["Tuition & Fees"];
+        }
+      }
+    }
+  }
+
+  //   isDate(value) {
+  //     if (!value) {
+  //       return false;
+  //     }
+
+  //     if (typeof value === "object" && value instanceof Date) {
+  //       return true;
+  //     }
+
+  //     if (typeof value === "string") {
+  //       const timestamp = Date.parse(value);
+  //       return !isNaN(timestamp);
+  //     }
+
+  //     return false;
+  //   }
+
   //**************************************************************** */
   // This is mainly for testing, Chance will do his own thing. This is call in getUnofficialFTE.
   getLatestRecords(data, keys, date_var) {
@@ -485,30 +469,6 @@ export class NetRevenue {
     return latestRecords;
   }
 
-  //**************************************************************** */
-  // This is mainly for testing, Chance will do his own thing.
-  getUnofficialFTE(unofficialFTE) {
-    const dates = this.year_dates;
-    var filtered_data = [];
-    for (let row of unofficialFTE) {
-      for (let date of dates) {
-        if (
-          row["EFFECTIVE_DATE"] <= date["Execution Date"] &&
-          date["YEAR"] === row["YEAR"]
-        )
-          filtered_data.push(row);
-      }
-    }
-    // console.log("filtered_data FTE", filtered_data);
-    var x = this.getLatestRecords(
-      filtered_data,
-      ["YEAR", "STYP", "LEVL", "RESD", "EKU_ONLINE"],
-      "EFFECTIVE_DATE"
-    );
-    // console.log("UNOFFICIAL FTE", x);
-    return x;
-  }
-
   keepMaxValueByKeys(arr, keys, valueKey) {
     const grouped = arr.reduce((acc, obj) => {
       const groupKey = keys.map((key) => obj[key]).join("-");
@@ -528,6 +488,28 @@ export class NetRevenue {
     return result;
   }
 
+  //**************************************************************** */
+  // This is mainly for testing, Chance will do his own thing.
+  getUnofficialFTE(unofficialFTE) {
+    const dates = this.year_dates;
+    var filtered_data = [];
+    for (let row of unofficialFTE) {
+      for (let date of dates) {
+        if (
+          row["EFFECTIVE_DATE"] <= date["Execution Date"] &&
+          date["YEAR"] === row["YEAR"]
+        )
+          filtered_data.push(row);
+      }
+    }
+    var x = this.getLatestRecords(
+      filtered_data,
+      ["YEAR", "STYP", "LEVL", "RESD", "EKU_ONLINE"],
+      "EFFECTIVE_DATE"
+    );
+    return x;
+  }
+
   institutionaMinusStateFoundation() {
     for (const key in this.value) {
       if (this.value.hasOwnProperty(key)) {
@@ -537,59 +519,6 @@ export class NetRevenue {
           this.value[key]["Foundation Scholarships"];
       }
     }
-    this.populateMissingKeys(
-      "Institutional Aid less State Waivers and Foundation",
-      0
-    );
-  }
-
-  revenueAfterExternalGrantsScholarships() {
-    for (const key in this.value) {
-      if (this.value.hasOwnProperty(key)) {
-        //   console.log(key, this.value[key]);
-        this.value[key]["Revenue after external aid"] =
-          this.value[key]["Tuition & Fees"] -
-          this.value[key]["Total External Aid"];
-      }
-    }
-
-    this.populateMissingKeys("Revenue after external aid", 0);
-  }
-
-  institutionalEmployeeWaivers(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["EM"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Employee/Dependent Tuition Waiver"] = x["AMOUNT"];
-    }
-    this.populateMissingKeys("Employee/Dependent Tuition Waiver", 0);
-  }
-
-  otherExternalGrantsScholarships(data) {
-    const filtered = this.filterByKeys(data, { CATEGORY: ["OG"] });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Other/External Grant/Scholarship"] = x["AMOUNT"];
-    }
-    // console.log(this.value);
-
-    this.populateMissingKeys("Other/External Grant/Scholarship", 0);
-  }
-
-  institutionalFoundationScholarships(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["FC"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Foundation Scholarships"] = x["AMOUNT"];
-    }
-
-    this.populateMissingKeys("Foundation Scholarships", 0);
   }
 
   /**
@@ -616,56 +545,6 @@ export class NetRevenue {
     });
   }
 
-  totalInstitutionalGrantsScholarships(data) {
-    const filtered = this.filterByKeys(data, { CATEGORY: ["IG"] });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Institutional Grant/Scholarship Aid"] =
-        x["AMOUNT"];
-    }
-
-    this.populateMissingKeys("Institutional Grant/Scholarship Aid", 0);
-  }
-
-  institutionalStateMandatedWaivers(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["SM"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["State Mandated Waivers"] = x["AMOUNT"];
-    }
-    this.populateMissingKeys("State Mandated Waivers", 0);
-  }
-
-  netRevenue() {
-    for (const key in this.value) {
-      if (this.value.hasOwnProperty(key)) {
-        this.value[key]["Net Revenue"] =
-          this.value[key]["Tuition & Fees"] -
-          this.value[key][
-            "Institutional Aid less State Waivers and Foundation"
-          ] -
-          this.value[key]["Total External Aid"];
-      }
-    }
-
-    this.populateMissingKeys("Net Revenue", 0);
-  }
-
-  institutionalAthleticScholarships(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["AS"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Athletic Scholarships"] = x["AMOUNT"];
-    }
-    this.populateMissingKeys("Athletic Scholarships", 0);
-  }
-
   //**************************************************************** */
   // This is mainly for testing, Chance will do his own thing.
   getAcctTransactions(acctData) {
@@ -683,26 +562,6 @@ export class NetRevenue {
     return filtered_acct_data;
   }
 
-  totalExternalGrantsScholarships(data) {
-    const filtered = this.filterByKeys(data, { CATEGORY: ["FG", "SG", "OG"] });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Total External Aid"] = x["AMOUNT"];
-    }
-    // console.log(this.value);
-    this.populateMissingKeys("Total External Aid", 0);
-  }
-
-  federalGrantsScholarships(data) {
-    const filtered = this.filterByKeys(data, { CATEGORY: ["FG"] });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Federal Grant/Scholarship"] = x["AMOUNT"];
-    }
-    // console.log(this.value);
-    this.populateMissingKeys("Federal Grant/Scholarship", 0);
-  }
-
   removeNewlineFromKeys(arr) {
     var new_arr = [];
     for (const obj of arr) {
@@ -718,73 +577,90 @@ export class NetRevenue {
     return new_arr;
   }
 
-  stateGrantsScholarships(data) {
-    const filtered = this.filterByKeys(data, { CATEGORY: ["SG"] });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["State Grant/Scholarship"] = x["AMOUNT"];
-    }
-    // console.log(this.value);
-    this.populateMissingKeys("State Grant/Scholarship", 0);
-  }
-
-  institutionalHousingGrants(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["HG"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Housing Grants"] = x["AMOUNT"];
-    }
-    this.populateMissingKeys("Housing Grants", 0);
-  }
-
-  institutionalScholarships(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["SC"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Scholarships"] = x["AMOUNT"];
-    }
-    this.populateMissingKeys("Scholarships", 0);
-  }
-
-  institutionalSAFEFund(data) {
-    const filtered = this.filterByKeys(data, {
-      INTERNAL_AID: ["SF"],
-      CATEGORY: ["IG"],
-    });
-    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["SAFE Fund"] = x["AMOUNT"];
-    }
-    this.populateMissingKeys("SAFE Fund", 0);
-  }
-
-  discountRate() {
+  netRevenue() {
     for (const key in this.value) {
       if (this.value.hasOwnProperty(key)) {
-        this.value[key]["Discount Rate"] =
+        this.value[key]["Net Revenue"] =
+          this.value[key]["Tuition & Fees"] -
           this.value[key][
             "Institutional Aid less State Waivers and Foundation"
-          ] / this.value[key]["Tuition & Fees"];
+          ] -
+          this.value[key]["Total External Aid"];
       }
     }
-
-    this.populateMissingKeys("Discount Rate", 0);
   }
 
-  unofficialCreditHours(data) {
-    const filtered = this.getUnofficialFTE(data);
-    const summed = this.summarizeData(filtered, ["YEAR"], ["HOURS"]);
-    for (var x of summed) {
-      this.value[x["YEAR"]]["Total Student Credit Hours"] = x["HOURS"];
+  revenueAfterExternalGrantsScholarships() {
+    for (const key in this.value) {
+      if (this.value.hasOwnProperty(key)) {
+        //   console.log(key, this.value[key]);
+        this.value[key]["Revenue after external aid"] =
+          this.value[key]["Tuition & Fees"] -
+          this.value[key]["Total External Aid"];
+      }
     }
+  }
 
-    this.populateMissingKeys("Total Student Credit Hours", 0);
+  institutionalEmployeeWaivers(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["EM"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Employee/Dependent Tuition Waiver"] = x["AMOUNT"];
+    }
+  }
+
+  institutionalFoundationScholarships(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["FC"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Foundation Scholarships"] = x["AMOUNT"];
+    }
+  }
+
+  institutionalStateMandatedWaivers(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["SM"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["State Mandated Waivers"] = x["AMOUNT"];
+    }
+  }
+
+  otherExternalGrantsScholarships(data) {
+    const filtered = this.filterByKeys(data, { CATEGORY: ["OG"] });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Other/External Grant/Scholarship"] = x["AMOUNT"];
+    }
+    // console.log(this.value);
+  }
+
+  institutionalAthleticScholarships(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["AS"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Athletic Scholarships"] = x["AMOUNT"];
+    }
+  }
+
+  totalExternalGrantsScholarships(data) {
+    const filtered = this.filterByKeys(data, { CATEGORY: ["FG", "SG", "OG"] });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Total External Aid"] = x["AMOUNT"];
+    }
+    // console.log(this.value);
   }
 
   capitalizeKeys(arr) {
@@ -800,16 +676,24 @@ export class NetRevenue {
     });
   }
 
-  netRevenuePerCreditHour() {
-    for (const key in this.value) {
-      if (this.value.hasOwnProperty(key)) {
-        this.value[key]["Net Revenue per SCH"] =
-          this.value[key]["Net Revenue"] /
-          this.value[key]["Total Student Credit Hours"];
-      }
+  federalGrantsScholarships(data) {
+    const filtered = this.filterByKeys(data, { CATEGORY: ["FG"] });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Federal Grant/Scholarship"] = x["AMOUNT"];
     }
+    // console.log(this.value);
+  }
 
-    this.populateMissingKeys("Net Revenue per SCH", 0);
+  institutionalHousingGrants(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["HG"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Housing Grants"] = x["AMOUNT"];
+    }
   }
 
   deleteKeysFromObjectArray(arr, keysToDelete) {
@@ -822,14 +706,72 @@ export class NetRevenue {
     });
   }
 
-  populateMissingKeys(key, value) {
-    // loop over the years.
-    for (const yr_key of Object.keys(this.value)) {
-      // console.log(yr_key, this.value[yr_key]);
-      var myObj = this.value[yr_key];
-      if (!myObj.hasOwnProperty(key)) {
-        this.value[yr_key][key] = value;
+  totalInstitutionalGrantsScholarships(data) {
+    const filtered = this.filterByKeys(data, { CATEGORY: ["IG"] });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Institutional Grant/Scholarship Aid"] =
+        x["AMOUNT"];
+    }
+  }
+
+  stateGrantsScholarships(data) {
+    const filtered = this.filterByKeys(data, { CATEGORY: ["SG"] });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["State Grant/Scholarship"] = x["AMOUNT"];
+    }
+    // console.log(this.value);
+  }
+
+  institutionalScholarships(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["SC"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Scholarships"] = x["AMOUNT"];
+    }
+  }
+
+  institutionalSAFEFund(data) {
+    const filtered = this.filterByKeys(data, {
+      INTERNAL_AID: ["SF"],
+      CATEGORY: ["IG"],
+    });
+    const summed = this.summarizeData(filtered, ["YEAR"], ["AMOUNT"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["SAFE Fund"] = x["AMOUNT"];
+    }
+  }
+
+  discountRate() {
+    for (const key in this.value) {
+      if (this.value.hasOwnProperty(key)) {
+        this.value[key]["Discount Rate"] =
+          this.value[key][
+            "Institutional Aid less State Waivers and Foundation"
+          ] / this.value[key]["Tuition & Fees"];
       }
+    }
+  }
+
+  netRevenuePerCreditHour() {
+    for (const key in this.value) {
+      if (this.value.hasOwnProperty(key)) {
+        this.value[key]["Net Revenue per SCH"] =
+          this.value[key]["Net Revenue"] /
+          this.value[key]["Total Student Credit Hours"];
+      }
+    }
+  }
+
+  unofficialCreditHours(data) {
+    const filtered = this.getUnofficialFTE(data);
+    const summed = this.summarizeData(filtered, ["YEAR"], ["HOURS"]);
+    for (var x of summed) {
+      this.value[x["YEAR"]]["Total Student Credit Hours"] = x["HOURS"];
     }
   }
 
@@ -840,8 +782,6 @@ export class NetRevenue {
           this.value[key]["Net Revenue"] / this.value[key]["FTE"];
       }
     }
-
-    this.populateMissingKeys("Net Revenue per FTE", 0);
   }
 
   unofficialFTE(data) {
@@ -850,21 +790,8 @@ export class NetRevenue {
     for (var x of summed) {
       this.value[x["YEAR"]]["FTE"] = x["FTE"];
     }
-
-    this.populateMissingKeys("FTE", 0);
   }
 
-  /**
-   * This method gets the max value of a key in an array of objects.
-   *
-   * @param {array of objects} array - The array of objects.
-   * @param {array} key - The key/column we want the max value from.
-   *
-   * @returns {} single value - The maximum value from the key/column.
-   *
-   * Example usage:
-   * const maxValue = getMaxValue(data, "YEAR");
-   */
   getMaxValue(arr, key) {
     if (!arr || arr.length === 0) {
       return undefined;

@@ -236,6 +236,8 @@ export default function App() {
 
   usePrevious(datasets, initializeCalendar);
 
+  console.log(netRevenueParams);
+
   const rerunData = () =>
     datasets && setNetRevenue(new NetRevenue(...netRevenueParams));
 
@@ -355,77 +357,75 @@ export default function App() {
 
   return (
     <>
-      <main className="container">
-        <div className="my-3 p-3 bg-body rounded shadow-sm">
-          <div className="d-flex gap-3 flex-wrap">
-            <Popover
-              label={
-                <div className="icon-link">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="bi bi-calendar3"
-                    fill="currentColor"
-                    viewBox="0 0 16 16"
-                    height={16}
-                    width={16}
-                  >
-                    <path d="M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2M1 3.857C1 3.384 1.448 3 2 3h12c.552 0 1 .384 1 .857v10.286c0 .473-.448.857-1 .857H2c-.552 0-1-.384-1-.857z" />
-                    <path d="M6.5 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2" />
-                  </svg>
-                  {selectedDate?.toLocaleDateString()}
-                </div>
-              }
-            >
-              <Calendar onChange={setSelectedDate} value={selectedDate} />
-            </Popover>
-            {dropdowns &&
-              Object.entries(dropdowns).map(([field, set]) => (
-                <Dropdown
-                  onItemClick={onDropdownItemClick}
-                  list={dropdownItems[field]}
-                  field={field}
-                  active={set}
-                  key={field}
+      <div className="">
+        <div className="d-flex gap-3 flex-wrap">
+          <Popover
+            label={
+              <div className="icon-link">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="bi bi-calendar3"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                  height={16}
+                  width={16}
                 >
-                  {dropdownFieldLabels[field]}
-                </Dropdown>
-              ))}
-          </div>
-        </div>
-        <div className="my-3 p-3 bg-body rounded shadow-sm">
-          <div>
-            <AgGridReact
-              loading={
-                deferredDropdowns !== dropdowns ||
-                deferredSelectedDate !== selectedDate
-              }
-              onGridSizeChanged={autoSizeGrid}
-              onRowDataUpdated={autoSizeGrid}
-              defaultColDef={defaultColDef}
-              columnDefs={bestColumnDefs}
-              domLayout="autoHeight"
-              rowData={bestRowData}
-              tooltipShowDelay={0}
-            />
-          </div>
-        </div>
-        <div className="my-3 p-3 bg-body rounded shadow-sm">
-          <Dropdown
-            onItemClick={onLinesChange}
-            list={linesDropdownList}
-            active={activeLines}
+                  <path d="M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2M1 3.857C1 3.384 1.448 3 2 3h12c.552 0 1 .384 1 .857v10.286c0 .473-.448.857-1 .857H2c-.552 0-1-.384-1-.857z" />
+                  <path d="M6.5 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2" />
+                </svg>
+                {selectedDate?.toLocaleDateString()}
+              </div>
+            }
           >
-            Lines
-          </Dropdown>
+            <Calendar onChange={setSelectedDate} value={selectedDate} />
+          </Popover>
+          {dropdowns &&
+            Object.entries(dropdowns).map(([field, set]) => (
+              <Dropdown
+                onItemClick={onDropdownItemClick}
+                list={dropdownItems[field]}
+                field={field}
+                active={set}
+                key={field}
+              >
+                {dropdownFieldLabels[field]}
+              </Dropdown>
+            ))}
         </div>
-        <div className="my-3 p-3 bg-body rounded shadow-sm">
-          <SimpleLineChart
-            numericalDataKeys={selectedNumericalDataKeys}
-            categoricalDataKey={categoricalDataKey}
-            data={chartData}
-          ></SimpleLineChart>
+      </div>
+      <div className="">
+        <div>
+          <AgGridReact
+            loading={
+              deferredDropdowns !== dropdowns ||
+              deferredSelectedDate !== selectedDate
+            }
+            onGridSizeChanged={autoSizeGrid}
+            onRowDataUpdated={autoSizeGrid}
+            defaultColDef={defaultColDef}
+            columnDefs={bestColumnDefs}
+            domLayout="autoHeight"
+            rowData={bestRowData}
+            tooltipShowDelay={0}
+          />
         </div>
-      </main>
+      </div>
+      <div className="">
+        <Dropdown
+          onItemClick={onLinesChange}
+          list={linesDropdownList}
+          active={activeLines}
+        >
+          Lines
+        </Dropdown>
+      </div>
+      <div className="">
+        <SimpleLineChart
+          numericalDataKeys={selectedNumericalDataKeys}
+          categoricalDataKey={categoricalDataKey}
+          data={chartData}
+        ></SimpleLineChart>
+      </div>
     </>
   );
 }
