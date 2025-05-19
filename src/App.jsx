@@ -115,10 +115,14 @@ const getRowHeight = (params) => {
   if (params?.data?.name === "As of Date") return 30;
 };
 
-// dropdown for x-axis values (categories)
+const today = new Date();
+const oneYearAgo = new Date();
+oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+// * dropdown for x-axis values (categories)
 // * fix "All" item on line chart
 // * only include dropdown values based on what is found in data
-// try to make calendar just one year backwards
+// * try to make calendar just one year backwards
 // check year_dates object
 // toggle most recent transaction date for every combination (passing a date way in the future will force as of date to today)
 
@@ -387,7 +391,11 @@ export default function App() {
               </div>
             }
           >
-            <Calendar onChange={setSelectedDate} value={selectedDate} />
+            <Calendar
+              onChange={setSelectedDate}
+              minDate={oneYearAgo}
+              value={selectedDate}
+            />
           </Popover>
           {dropdowns &&
             Object.entries(dropdowns).map(([field, set]) => (
