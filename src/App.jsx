@@ -23,6 +23,7 @@ import { fixRowData } from "./utils/fixRowData";
 import { NetRevenue } from "./utils/NetRevenue";
 import { formatDate } from "./utils/formatDate";
 import { filterRows } from "./utils/filterRows";
+import { Popover } from "./components/Popover";
 import { makeArray } from "./utils/makeArray";
 import { makeDate } from "./utils/makeDate";
 
@@ -86,16 +87,18 @@ const findIndexOfName = (rowData, string) =>
   rowData.filter((element) => element).findIndex(({ name }) => name === string);
 
 const dropdownFieldLabels = {
+  EKU_ONLINE: "EKU Online",
   STYP: "Student type",
   RESD: "Residency",
   LEVL: "Level",
 };
 
-// ! eku online filter
 // ! slow down
-// ! checkbox dropdown items
-// ! calendar popover (could put date on button)
-// ! select different parameters (lines) on line chart
+// * eku online filter
+// * checkbox dropdown items
+// * calendar popover (could put date on button)
+// * select different parameters (lines) on line chart
+// ! prettify line chart
 // ? narrow row & remove "As of Date"
 
 export default function App() {
@@ -108,12 +111,13 @@ export default function App() {
   const deferredDropdowns = useDeferredValue(dropdowns);
 
   const [initialDropdowns, dropdownItems] = useMemo(() => {
-    const initialDropdowns = Object.fromEntries(
-      dropdownOrder.map((field) => [
+    const initialDropdowns = Object.fromEntries([
+      ...dropdownOrder.map((field) => [
         field.substring(dropdownKeyPrefix.length),
         new Set(),
-      ])
-    );
+      ]),
+      ["EKU_ONLINE", new Set(["N", "Y"])],
+    ]);
 
     const dropdownValueLabels = Object.fromEntries(
       dropdownOrder.map((field) => [
@@ -139,17 +143,22 @@ export default function App() {
       });
     });
 
-    const dropdownItems = Object.fromEntries(
-      Object.entries(dropdownValueLabels).map(([field, pairs]) => [
+    const dropdownItems = Object.fromEntries([
+      ...Object.entries(dropdownValueLabels).map(([field, pairs]) => [
         field,
         Object.entries(pairs).map(([value, label]) => ({ value, label })),
-      ])
-    );
+      ]),
+      [
+        "EKU_ONLINE",
+        [
+          { label: "No", value: "N" },
+          { label: "Yes", value: "Y" },
+        ],
+      ],
+    ]);
 
     return [initialDropdowns, dropdownItems];
   }, [dropdownLists]);
-
-  console.log(dropdownItems);
 
   const onDropdownItemClick = useCallback(({ field, value }) => {
     setDropdowns((currentState) => {
@@ -260,6 +269,8 @@ export default function App() {
     [rowData, columnDefs, dateLookup]
   );
 
+  const [lines, setLines] = useState({});
+
   const numericalDataKeys = useMemo(() => {
     const highlightedNamesSorted = [...highlightedNames].sort(
       (a, b) =>
@@ -269,22 +280,75 @@ export default function App() {
     return splitArrayAtElement(highlightedNamesSorted, "FTE")[0];
   }, [bestRowData]);
 
+  const checkLines = () => {
+    const newLines = makeArray(numericalDataKeys).filter(
+      (key) => !(key in lines)
+    );
+
+    const newEntries = newLines.map((key) => [key, true]);
+
+    if (newLines.length > 0) {
+      setLines((currentState) =>
+        Object.fromEntries([...Object.entries(currentState), ...newEntries])
+      );
+    }
+  };
+
+  checkLines();
+
+  const activeLines = new Set(
+    Object.entries(lines)
+      .filter(([, condition]) => condition)
+      .map(([key]) => key)
+  );
+
+  const linesDropdownList = Object.keys(lines).map((value) => ({
+    label: value,
+    value,
+  }));
+
+  const onLinesChange = ({ value }) => {
+    setLines((currentState) =>
+      Object.fromEntries(
+        Object.entries(currentState).map((entry) =>
+          entry[0] === value ? [value, !entry[1]] : entry
+        )
+      )
+    );
+  };
+
   const bestColumnDefs = useMemo(
     () => columnDefs.filter(({ field }) => fieldsToShow.has(field)),
     [columnDefs]
   );
 
+  const selectedNumericalDataKeys = [...activeLines];
+
   return (
     <>
       <main className="container">
         <div className="my-3 p-3 bg-body rounded shadow-sm">
-          {selectedDate?.toLocaleDateString()}
-        </div>
-        <div className="my-3 p-3 bg-body rounded shadow-sm">
-          <Calendar onChange={setSelectedDate} value={selectedDate} />
-        </div>
-        <div className="my-3 p-3 bg-body rounded shadow-sm">
           <div className="d-flex gap-3 flex-wrap">
+            <Popover
+              label={
+                <div className="icon-link">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="bi bi-calendar3"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                    height={16}
+                    width={16}
+                  >
+                    <path d="M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2M1 3.857C1 3.384 1.448 3 2 3h12c.552 0 1 .384 1 .857v10.286c0 .473-.448.857-1 .857H2c-.552 0-1-.384-1-.857z" />
+                    <path d="M6.5 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2m3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2" />
+                  </svg>
+                  {selectedDate?.toLocaleDateString()}
+                </div>
+              }
+            >
+              <Calendar onChange={setSelectedDate} value={selectedDate} />
+            </Popover>
             {dropdowns &&
               Object.entries(dropdowns).map(([field, set]) => (
                 <Dropdown
@@ -317,9 +381,18 @@ export default function App() {
           </div>
         </div>
         <div className="my-3 p-3 bg-body rounded shadow-sm">
+          <Dropdown
+            onItemClick={onLinesChange}
+            list={linesDropdownList}
+            active={activeLines}
+          >
+            Lines
+          </Dropdown>
+        </div>
+        <div className="my-3 p-3 bg-body rounded shadow-sm">
           <SimpleLineChart
+            numericalDataKeys={selectedNumericalDataKeys}
             categoricalDataKey={categoricalDataKey}
-            numericalDataKeys={numericalDataKeys}
             data={chartData}
           ></SimpleLineChart>
         </div>
