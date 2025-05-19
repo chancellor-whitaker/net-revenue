@@ -163,16 +163,26 @@ export default function App() {
     return [initialDropdowns, dropdownItems];
   }, [dropdownLists]);
 
-  const onDropdownItemClick = useCallback(({ field, value }) => {
+  const onDropdownItemClick = useCallback((params) => {
+    const { field, value, list } = params;
+
     setDropdowns((currentState) => {
       const nextState = { ...currentState };
 
       nextState[field] = new Set(nextState[field]);
 
-      if (nextState[field].has(value)) {
-        nextState[field].delete(value);
+      if (!("value" in params)) {
+        const allWereActive = nextState[field].size === list.length;
+
+        nextState[field] = allWereActive
+          ? new Set()
+          : new Set(list.map(({ value }) => value));
       } else {
-        nextState[field].add(value);
+        if (nextState[field].has(value)) {
+          nextState[field].delete(value);
+        } else {
+          nextState[field].add(value);
+        }
       }
 
       return nextState;
@@ -235,8 +245,6 @@ export default function App() {
   usePrevious(initialDropdowns, initializeDropdowns);
 
   usePrevious(datasets, initializeCalendar);
-
-  console.log(netRevenueParams);
 
   const rerunData = () =>
     datasets && setNetRevenue(new NetRevenue(...netRevenueParams));
@@ -352,8 +360,6 @@ export default function App() {
   //     "BookSmart",
   //   ].map((name, index) => [name, palette[index]])
   // );
-
-  // console.log(colorPalette);
 
   return (
     <>
