@@ -1,4 +1,5 @@
 import { useDeferredValue, useCallback, useState, useMemo } from "react";
+import { themeQuartz } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import Calendar from "react-calendar";
 import { csv } from "d3-fetch";
@@ -26,6 +27,10 @@ import { filterRows } from "./utils/filterRows";
 import { Popover } from "./components/Popover";
 import { makeArray } from "./utils/makeArray";
 import { makeDate } from "./utils/makeDate";
+
+const myTheme = themeQuartz.withParams({
+  headerRowBorder: false,
+});
 
 // * create table data using NetRevenue class
 // * highlight specific rows (special rows)
@@ -103,6 +108,10 @@ const dropdownFieldLabels = {
 // ! template
 // ? fix slow down
 // ? narrow row & remove "As of Date"
+
+const getRowHeight = (params) => {
+  if (params?.data?.name === "As of Date") return 30;
+};
 
 export default function App() {
   const datasets = usePromise(datasetsPromise);
@@ -409,10 +418,12 @@ export default function App() {
             onGridSizeChanged={autoSizeGrid}
             onRowDataUpdated={autoSizeGrid}
             defaultColDef={defaultColDef}
+            getRowHeight={getRowHeight}
             columnDefs={bestColumnDefs}
             domLayout="autoHeight"
             rowData={bestRowData}
             tooltipShowDelay={0}
+            theme={myTheme}
           />
         </div>
       </div>

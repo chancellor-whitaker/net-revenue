@@ -135,12 +135,19 @@ export const cellClassRules = {
       (data?.name === "As of Date" && field !== "name")
     );
   },
+  "fw-bold": ({ colDef: { field }, data }) => {
+    if (field === "name") return true;
+
+    if (data.name === "As of Date") return true;
+  },
+  "text-transparent": ({ colDef: { field }, data }) =>
+    field === "name" && data[field] === "As of Date",
   "bg-warning-subtle": ({ data }) => {
     return new Set(highlightedNames).has(data?.name);
   },
   "bg-white": ({ data }) => {
     return data?.name === "";
   },
-  "fw-bold": ({ colDef: { field } }) => field === "name",
+  "bg-ag-header": ({ data }) => data.name === "As of Date",
   dollar: ({ value }) => `${value}`.startsWith("$"),
 };
