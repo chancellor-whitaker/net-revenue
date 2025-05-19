@@ -23,3 +23,7 @@ body {
 .dollar:before {
   content: "$";
 }
+
+svg.recharts-surface {
+  overflow: visible;
+}

@@ -93,12 +93,15 @@ const dropdownFieldLabels = {
   LEVL: "Level",
 };
 
-// ! slow down
 // * eku online filter
 // * checkbox dropdown items
 // * calendar popover (could put date on button)
 // * select different parameters (lines) on line chart
-// ! prettify line chart
+// * numerical & categorical formatting in line chart
+// * truncate y axis ticks/add margin to left of y axis
+// ! assign a color to each line
+// ! template
+// ? fix slow down
 // ? narrow row & remove "As of Date"
 
 export default function App() {
@@ -323,6 +326,32 @@ export default function App() {
   );
 
   const selectedNumericalDataKeys = [...activeLines];
+
+  // const palette = [
+  //   "ff0029",
+  //   "377eb8",
+  //   "66a61e",
+  //   "984ea3",
+  //   "00d2d5",
+  //   "ff7f00",
+  //   "af8d00",
+  //   "7f80cd",
+  // ].map((string) => `#${string}`);
+
+  // const colorPalette = Object.fromEntries(
+  //   [
+  //     "Institutional Aid less State Waivers and Foundation",
+  //     "Institutional Grant/Scholarship Aid",
+  //     "Revenue after external aid",
+  //     "Total Student Credit Hours",
+  //     "Total External Aid",
+  //     "Tuition & Fees",
+  //     "Net Revenue",
+  //     "BookSmart",
+  //   ].map((name, index) => [name, palette[index]])
+  // );
+
+  // console.log(colorPalette);
 
   return (
     <>
