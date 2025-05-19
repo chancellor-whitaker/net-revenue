@@ -15,6 +15,7 @@ import { splitIntoGroups } from "./utils/splitIntoGroups";
 import { getColumnDefs } from "./utils/getColumnDefs";
 import { defaultColDef } from "./utils/defaultColDef";
 import { getDateByYear } from "./utils/getDateByYear";
+import { getEveryValue } from "./utils/getEveryValue";
 import { fieldsToShow } from "./utils/fieldsToShow";
 import { autoSizeGrid } from "./utils/autoSizeGrid";
 import { usePrevious } from "./hooks/usePrevious";
@@ -104,14 +105,23 @@ const dropdownFieldLabels = {
 // * select different parameters (lines) on line chart
 // * numerical & categorical formatting in line chart
 // * truncate y axis ticks/add margin to left of y axis
-// ! assign a color to each line
-// ! template
+// * assign a color to each line
+// * template
+// * narrow row & remove "As of Date"
 // ? fix slow down
-// ? narrow row & remove "As of Date"
 
 const getRowHeight = (params) => {
   if (params?.data?.name === "As of Date") return 30;
 };
+
+// dropdown for x-axis values (categories)
+// * fix "All" item on line chart
+// * only include dropdown values based on what is found in data
+// try to make calendar just one year backwards
+// check year_dates object
+// toggle most recent transaction date for every combination (passing a date way in the future will force as of date to today)
+
+const dropdownFields = ["EKU_ONLINE", "LEVL", "RESD", "STYP"];
 
 export default function App() {
   const datasets = usePromise(datasetsPromise);
@@ -122,15 +132,7 @@ export default function App() {
 
   const deferredDropdowns = useDeferredValue(dropdowns);
 
-  const [initialDropdowns, dropdownItems] = useMemo(() => {
-    const initialDropdowns = Object.fromEntries([
-      ...dropdownOrder.map((field) => [
-        field.substring(dropdownKeyPrefix.length),
-        new Set(),
-      ]),
-      ["EKU_ONLINE", new Set(["N", "Y"])],
-    ]);
-
+  const valueLabels = useMemo(() => {
     const dropdownValueLabels = Object.fromEntries(
       dropdownOrder.map((field) => [
         field.substring(dropdownKeyPrefix.length),
@@ -138,9 +140,7 @@ export default function App() {
       ])
     );
 
-    const lists = makeArray(dropdownLists);
-
-    lists.forEach((list, index) => {
+    makeArray(dropdownLists).forEach((list, index) => {
       const field = dropdownOrder[index].substring(dropdownKeyPrefix.length);
 
       list.forEach((item) => {
@@ -149,27 +149,11 @@ export default function App() {
           item[`${dropdownKeyPrefix}${field}_DESC`],
         ];
 
-        initialDropdowns[field].add(value);
-
         dropdownValueLabels[field][value] = label;
       });
     });
 
-    const dropdownItems = Object.fromEntries([
-      ...Object.entries(dropdownValueLabels).map(([field, pairs]) => [
-        field,
-        Object.entries(pairs).map(([value, label]) => ({ value, label })),
-      ]),
-      [
-        "EKU_ONLINE",
-        [
-          { label: "No", value: "N" },
-          { label: "Yes", value: "Y" },
-        ],
-      ],
-    ]);
-
-    return [initialDropdowns, dropdownItems];
+    return dropdownValueLabels;
   }, [dropdownLists]);
 
   const onDropdownItemClick = useCallback((params) => {
@@ -201,6 +185,34 @@ export default function App() {
   const datasetsArray = useMemo(() => makeArray(datasets), [datasets]);
 
   const [accountingData, unofficialFte, officialFte] = datasetsArray;
+
+  const everyValue = useMemo(
+    () => getEveryValue(unofficialFte),
+    [unofficialFte]
+  );
+
+  const [initialDropdowns, dropdownItems] = useMemo(() => {
+    return [
+      Object.fromEntries(
+        Object.entries(everyValue)
+          .map(([key, values]) => [key, new Set(values)])
+          .filter(([key]) => dropdownFields.includes(key))
+      ),
+      Object.fromEntries(
+        Object.entries(everyValue)
+          .map(([key, values]) => [
+            key,
+            values.map((value) => ({
+              label: valueLabels?.[key]?.[value]
+                ? valueLabels[key][value]
+                : value,
+              value,
+            })),
+          ])
+          .filter(([key]) => dropdownFields.includes(key))
+      ),
+    ];
+  }, [everyValue, valueLabels]);
 
   const [selectedDate, setSelectedDate] = useState();
 
@@ -329,14 +341,26 @@ export default function App() {
     value,
   }));
 
-  const onLinesChange = ({ value }) => {
-    setLines((currentState) =>
-      Object.fromEntries(
+  const onLinesChange = (params) => {
+    const { value } = params;
+
+    setLines((currentState) => {
+      if (!("value" in params)) {
+        const notAllSelected = Object.entries(currentState).some(
+          ([, value]) => !value
+        );
+
+        return Object.fromEntries(
+          Object.entries(currentState).map(([key]) => [key, notAllSelected])
+        );
+      }
+
+      return Object.fromEntries(
         Object.entries(currentState).map((entry) =>
           entry[0] === value ? [value, !entry[1]] : entry
         )
-      )
-    );
+      );
+    });
   };
 
   const bestColumnDefs = useMemo(
