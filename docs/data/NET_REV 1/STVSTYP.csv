@@ -1,0 +1,17 @@
+STVSTYP_CODE,STVSTYP_DESC,STVSTYP_NEXT_STATUS,CODE_CONV
+T,New First Time Transfer,C,T
+X,Visiting,,X
+C,Continuing,,C
+R,Returning,C,R
+0,Undeclared,,0
+N,New First Time Freshman,C,N
+G,Graduate Student-Clear Admit,C,P
+A,Auditor,,A
+U,Non Degree,,U
+H,High School Special,,H
+J,EKU Dual Credit,,J
+V,Grad Provisional Admission,,P
+P,New First Time Grad Applicant,C,P
+B,Grad Probationary Admission,,P
+F,Grad Program Not-Admitted,,P
+Z,Grad applicant blocked reg,,P
