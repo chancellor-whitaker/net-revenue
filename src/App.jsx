@@ -4,6 +4,7 @@ import { AgGridReact } from "ag-grid-react";
 import Calendar from "react-calendar";
 import { csv } from "d3-fetch";
 
+import { categoricalFormatter } from "./utils/categoricalFormatter";
 import { buildNetRevenueData } from "./utils/buildNetRevenueData";
 import { splitArrayAtElement } from "./utils/splitArrayAtElement";
 import { handleAsOfDateField } from "./utils/handleAsOfDateField";
@@ -303,8 +304,6 @@ export default function App() {
     [rowData, columnDefs, dateLookup]
   );
 
-  const [lines, setLines] = useState({});
-
   const numericalDataKeys = useMemo(() => {
     const highlightedNamesSorted = [...highlightedNames].sort(
       (a, b) =>
@@ -314,61 +313,33 @@ export default function App() {
     return splitArrayAtElement(highlightedNamesSorted, "FTE")[0];
   }, [bestRowData]);
 
-  const checkLines = () => {
-    const newLines = makeArray(numericalDataKeys).filter(
-      (key) => !(key in lines)
-    );
-
-    const newEntries = newLines.map((key) => [key, true]);
-
-    if (newLines.length > 0) {
-      setLines((currentState) =>
-        Object.fromEntries([...Object.entries(currentState), ...newEntries])
-      );
-    }
-  };
-
-  checkLines();
-
-  const activeLines = new Set(
-    Object.entries(lines)
-      .filter(([, condition]) => condition)
-      .map(([key]) => key)
+  const categories = useMemo(
+    () => [
+      ...new Set(
+        chartData.map(({ [categoricalDataKey]: category }) => category)
+      ),
+    ],
+    [chartData]
   );
 
-  const linesDropdownList = Object.keys(lines).map((value) => ({
-    label: value,
-    value,
-  }));
+  const {
+    onDropdownChange: onYearsChange,
+    dropdownList: yearsDropdownList,
+    array: selectedCategories,
+    set: activeYears,
+  } = useGenericDropdown(categories, categoricalFormatter);
 
-  const onLinesChange = (params) => {
-    const { value } = params;
-
-    setLines((currentState) => {
-      if (!("value" in params)) {
-        const notAllSelected = Object.entries(currentState).some(
-          ([, value]) => !value
-        );
-
-        return Object.fromEntries(
-          Object.entries(currentState).map(([key]) => [key, notAllSelected])
-        );
-      }
-
-      return Object.fromEntries(
-        Object.entries(currentState).map((entry) =>
-          entry[0] === value ? [value, !entry[1]] : entry
-        )
-      );
-    });
-  };
+  const {
+    array: selectedNumericalDataKeys,
+    onDropdownChange: onLinesChange,
+    dropdownList: linesDropdownList,
+    set: activeLines,
+  } = useGenericDropdown(numericalDataKeys);
 
   const bestColumnDefs = useMemo(
     () => columnDefs.filter(({ field }) => fieldsToShow.has(field)),
     [columnDefs]
   );
-
-  const selectedNumericalDataKeys = [...activeLines];
 
   // const palette = [
   //   "ff0029",
@@ -452,21 +423,89 @@ export default function App() {
         </div>
       </div>
       <div className="">
-        <Dropdown
-          onItemClick={onLinesChange}
-          list={linesDropdownList}
-          active={activeLines}
-        >
-          Lines
-        </Dropdown>
+        <div className="d-flex gap-3 flex-wrap">
+          <Dropdown
+            onItemClick={onLinesChange}
+            list={linesDropdownList}
+            active={activeLines}
+          >
+            Lines
+          </Dropdown>
+          <Dropdown
+            onItemClick={onYearsChange}
+            list={yearsDropdownList}
+            active={activeYears}
+          >
+            X axis
+          </Dropdown>
+        </div>
       </div>
       <div className="">
         <SimpleLineChart
+          data={chartData.filter(({ [categoricalDataKey]: category }) =>
+            selectedCategories.includes(category)
+          )}
           numericalDataKeys={selectedNumericalDataKeys}
           categoricalDataKey={categoricalDataKey}
-          data={chartData}
         ></SimpleLineChart>
       </div>
     </>
   );
 }
+
+const defaultValueFormatter = (value) => value;
+
+const useGenericDropdown = (values, valueFormatter = defaultValueFormatter) => {
+  const [options, setOptions] = useState({});
+
+  const checkOptions = () => {
+    const newOptions = makeArray(values).filter((key) => !(key in options));
+
+    const newEntries = newOptions.map((key) => [key, true]);
+
+    if (newOptions.length > 0) {
+      setOptions((currentState) =>
+        Object.fromEntries([...Object.entries(currentState), ...newEntries])
+      );
+    }
+  };
+
+  checkOptions();
+
+  const set = new Set(
+    Object.entries(options)
+      .filter(([, condition]) => condition)
+      .map(([key]) => key)
+  );
+
+  const dropdownList = Object.keys(options).map((value) => ({
+    label: valueFormatter(value),
+    value,
+  }));
+
+  const onDropdownChange = (params) => {
+    const { value } = params;
+
+    setOptions((currentState) => {
+      if (!("value" in params)) {
+        const notAllSelected = Object.entries(currentState).some(
+          ([, value]) => !value
+        );
+
+        return Object.fromEntries(
+          Object.entries(currentState).map(([key]) => [key, notAllSelected])
+        );
+      }
+
+      return Object.fromEntries(
+        Object.entries(currentState).map((entry) =>
+          entry[0] === value ? [value, !entry[1]] : entry
+        )
+      );
+    });
+  };
+
+  const array = [...set];
+
+  return { onDropdownChange, dropdownList, array, set };
+};

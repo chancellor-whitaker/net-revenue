@@ -9,6 +9,8 @@ import {
   Line,
 } from "recharts";
 
+import { categoricalFormatter as defaultCatFormatter } from "../utils/categoricalFormatter";
+
 // name: year1, year2, ..., yearN
 // ...rest: metric1: number, metric2: number, ..., metricN: number
 
@@ -23,15 +25,6 @@ const palette = {
   BookSmart: "#7f80cd",
 };
 
-function splitStringAtIndex(str, index) {
-  if (index < 0 || index > str.length) {
-    return "Index is out of bounds";
-  }
-  const part1 = str.substring(0, index);
-  const part2 = str.substring(index);
-  return [part1, part2];
-}
-
 export const SimpleLineChart = ({
   numericalFormatter = (value) =>
     new Intl.NumberFormat("en-US", {
@@ -40,7 +33,7 @@ export const SimpleLineChart = ({
       style: "currency",
       currency: "USD",
     }).format(value),
-  categoricalFormatter = (value) => splitStringAtIndex(`${value}`, 2).join("-"),
+  categoricalFormatter = defaultCatFormatter,
   categoricalDataKey = "name",
   numericalDataKeys = [],
   colorPalette = palette,
