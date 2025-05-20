@@ -223,15 +223,23 @@ export default function App() {
 
   const deferredSelectedDate = useDeferredValue(selectedDate);
 
+  const [asOfToday, setAsOfToday] = useState(false);
+
+  const deferredAsOfToday = useDeferredValue(asOfToday);
+
+  const dateParam = deferredAsOfToday
+    ? "12/12/2199"
+    : formatDate(deferredSelectedDate);
+
   const dateLookup = useMemo(
     () =>
       Object.fromEntries(
-        getDateByYear(
-          makeArray(unofficialFte),
-          formatDate(deferredSelectedDate)
-        ).map((element) => [element.YEAR, element])
+        getDateByYear(makeArray(unofficialFte), dateParam).map((element) => [
+          element.YEAR,
+          element,
+        ])
       ),
-    [deferredSelectedDate, unofficialFte]
+    [dateParam, unofficialFte]
   );
 
   const filteredAccountingData = useMemo(
@@ -259,7 +267,7 @@ export default function App() {
     filteredAccountingData,
     filteredUnofficialFteData,
     officialFte,
-    formatDate(deferredSelectedDate),
+    dateParam,
   ];
 
   const [netRevenue, setNetRevenue] = useState();
@@ -280,6 +288,8 @@ export default function App() {
   usePrevious(deferredSelectedDate, rerunData);
 
   usePrevious(deferredDropdowns, rerunData);
+
+  usePrevious(deferredAsOfToday, rerunData);
 
   const formattedData = useMemo(
     () => buildNetRevenueData(netRevenue),
@@ -416,6 +426,38 @@ export default function App() {
               value={selectedDate}
             />
           </Popover>
+          <button
+            onClick={() => setAsOfToday((state) => !state)}
+            className="btn btn-primary"
+            type="button"
+          >
+            <div className="icon-link">
+              {asOfToday ? (
+                <svg
+                  className="bi bi-check-square-fill"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                  height={16}
+                  width={16}
+                >
+                  <path d="M2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm10.03 4.97a.75.75 0 0 1 .011 1.05l-3.992 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.75.75 0 0 1 1.08-.022z" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="bi bi-square"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                  height={16}
+                  width={16}
+                >
+                  <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" />
+                </svg>
+              )}
+              All as of today
+            </div>
+          </button>
           {dropdowns &&
             Object.entries(dropdowns).map(([field, set]) => (
               <Dropdown
@@ -435,7 +477,8 @@ export default function App() {
           <AgGridReact
             loading={
               deferredDropdowns !== dropdowns ||
-              deferredSelectedDate !== selectedDate
+              deferredSelectedDate !== selectedDate ||
+              deferredAsOfToday !== asOfToday
             }
             onGridSizeChanged={autoSizeGrid}
             onRowDataUpdated={autoSizeGrid}
