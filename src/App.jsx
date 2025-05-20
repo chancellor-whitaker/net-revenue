@@ -264,6 +264,8 @@ export default function App() {
 
   const [netRevenue, setNetRevenue] = useState();
 
+  // console.log(netRevenue?.year_dates);
+
   const initializeCalendar = () => setSelectedDate(new Date());
 
   const initializeDropdowns = () => setDropdowns(initialDropdowns);
@@ -295,17 +297,34 @@ export default function App() {
 
   const columnDefs = useMemo(() => getColumnDefs(rowData), [rowData]);
 
+  const betterDateLookup = useMemo(() => {
+    const object = netRevenue?.value ? netRevenue?.value : {};
+
+    return Object.fromEntries(
+      Object.entries(object).map(([key, row]) => {
+        return [
+          key,
+          {
+            "Execution Date": row["As of Date"],
+            "Display Year": row["Display Year"],
+            YEAR: key,
+          },
+        ];
+      })
+    );
+  }, [netRevenue]);
+
   const bestRowData = useMemo(
     () => [
       Object.fromEntries(
         columnDefs.map(({ field }) => [
           field,
-          handleAsOfDateField(field, dateLookup),
+          handleAsOfDateField(field, betterDateLookup),
         ])
       ),
       ...addProperBlanks(rowData, columnDefs),
     ],
-    [rowData, columnDefs, dateLookup]
+    [rowData, columnDefs, betterDateLookup]
   );
 
   const numericalDataKeys = useMemo(() => {
