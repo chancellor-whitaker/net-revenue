@@ -128,6 +128,8 @@ oneYearAgo.setFullYear(today.getFullYear() - 1);
 
 const dropdownFields = ["EKU_ONLINE", "LEVL", "RESD", "STYP"];
 
+const nonCurrencyNumericalKeys = ["Total Student Credit Hours", "FTE"];
+
 export default function App() {
   const datasets = usePromise(datasetsPromise);
 
@@ -343,7 +345,7 @@ export default function App() {
         findIndexOfName(bestRowData, a) - findIndexOfName(bestRowData, b)
     );
 
-    return splitArrayAtElement(highlightedNamesSorted, "FTE")[0];
+    return [...splitArrayAtElement(highlightedNamesSorted, "FTE")[0], "FTE"];
   }, [bestRowData]);
 
   const categories = useMemo(
@@ -374,6 +376,10 @@ export default function App() {
     [columnDefs]
   );
 
+  // console.log("here", numericalDataKeys);
+
+  // console.log("here", rightNumericalDataKeys);
+
   // const palette = [
   //   "ff0029",
   //   "377eb8",
@@ -397,6 +403,8 @@ export default function App() {
   //     "BookSmart",
   //   ].map((name, index) => [name, palette[index]])
   // );
+
+  console.log(selectedNumericalDataKeys);
 
   return (
     <>
@@ -512,10 +520,15 @@ export default function App() {
       </div>
       <div className="">
         <SimpleLineChart
+          rightNumericalDataKeys={selectedNumericalDataKeys.filter((key) =>
+            nonCurrencyNumericalKeys.includes(key)
+          )}
+          numericalDataKeys={selectedNumericalDataKeys.filter(
+            (key) => !nonCurrencyNumericalKeys.includes(key)
+          )}
           data={chartData.filter(({ [categoricalDataKey]: category }) =>
             selectedCategories.includes(category)
           )}
-          numericalDataKeys={selectedNumericalDataKeys}
           categoricalDataKey={categoricalDataKey}
         ></SimpleLineChart>
       </div>

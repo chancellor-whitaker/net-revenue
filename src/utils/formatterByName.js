@@ -4,6 +4,13 @@ import { formatPercentage } from "./formatPercentage";
 export const formatterByName = {
   "Discount Rate including BookSmart": formatPercentage,
   "Total Student Credit Hours": formatNumberWithCommas,
+  FTE: formatNumberWithCommasNoDecimals,
   "Discount Rate": formatPercentage,
-  FTE: formatNumberWithCommas,
 };
+
+function formatNumberWithCommasNoDecimals(number) {
+  return number.toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+    useGrouping: true,
+  });
+}

@@ -50,7 +50,7 @@ export class NetRevenue {
     unofficialFTE,
     officialFTE,
     date = "12/31/2199",
-    bookSmart = { 2122: 6910998, 2223: 7836252, 2324: 7771845 }
+    bookSmart = { 2122: 6910998, 2223: 7836252, 2324: 7771845, 2425: 8159379 }
   ) {
     // copy the data.
     var accoutingData_x = [...accoutingData];
@@ -418,8 +418,6 @@ export class NetRevenue {
         }
       }
       return 0;
-
-      this.year;
     });
   }
 
@@ -646,8 +644,8 @@ export class NetRevenue {
           this.value[key]["Tuition & Fees"] -
           this.value[key][
             "Institutional Aid less State Waivers and Foundation"
-          ] -
-          this.value[key]["Total External Aid"];
+          ];
+        // - this.value[key]["Total External Aid"];
       }
     }
 

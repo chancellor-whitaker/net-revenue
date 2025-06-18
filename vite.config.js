@@ -1,9 +1,15 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// https://vite.dev/config/
-export default defineConfig({
-  build: { copyPublicDir: true, emptyOutDir: true, outDir: "docs" },
-  plugins: [react()],
-  base: "",
-});
+import { patch } from "./src/utilities/patch";
+
+// const outDir = "Y:/factbook";
+
+// const ekuOnline = outDir.split("/").includes("ekuonline");
+
+// https://vitejs.dev/config/
+export default defineConfig(
+  patch({
+    plugins: [react()],
+  })
+);
